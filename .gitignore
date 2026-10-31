@@ -13,3 +13,4 @@ data/*.json
 !README.md
 !SETUP.md
 !LOTTERY_DATA_IMPORT.md
+!prompts/lottery_analysis.md

@@ -9,7 +9,6 @@ import csv
 import datetime as dt
 import json
 import re
-import shutil
 import sqlite3
 import sys
 import unicodedata
@@ -19,10 +18,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config import DEFAULT_DB_PATH  # noqa: E402
-from app.schemas.lottery import Draw, LotteryType  # noqa: E402
-from app.services.lottery_data import validate_draw  # noqa: E402
-
+from app.config import DEFAULT_DB_PATH
+from app.schemas.lottery import Draw, LotteryType
+from app.services.lottery_data import validate_draw
 
 LOTTERIES_BY_FAMILY = {
     "numbers": (LotteryType.NUMBERS3, LotteryType.NUMBERS4),
@@ -168,13 +166,26 @@ def load_bundle(path: Path) -> list[ParsedDraw]:
     parsed = []
     for bundle_path in bundle_files:
         payload = json.loads(bundle_path.read_text(encoding="utf-8"))
-        if payload.get("source") != "Mizuho Bank official per-draw CSVs":
-            raise ValueError(f"Unexpected data source in {bundle_path}")
-        files = payload.get("files")
-        if not isinstance(files, list) or not files:
-            raise ValueError(f"No CSV files found in {bundle_path}")
-        for item in files:
-            parsed.extend(parse_mizuho_csv(item["family"], item["text"]))
+        parsed.extend(parse_bundle(payload))
+    return _deduplicate(parsed)
+
+
+def parse_bundle(payload: dict) -> list[ParsedDraw]:
+    if payload.get("source") != "Mizuho Bank official per-draw CSVs":
+        raise ValueError("Unexpected data source")
+    files = payload.get("files")
+    if not isinstance(files, list) or not files:
+        raise ValueError("No CSV files found in bundle")
+
+    parsed = []
+    for item in files:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid CSV file entry in bundle")
+        family = item.get("family")
+        text = item.get("text")
+        if not isinstance(family, str) or not isinstance(text, str):
+            raise ValueError("CSV file entry must contain family and text")
+        parsed.extend(parse_mizuho_csv(family, text))
     return _deduplicate(parsed)
 
 
@@ -272,7 +283,7 @@ def main() -> None:
 
     records = load_bundle(args.bundle)
     summary, conflicts = compare_database(args.db, records)
-    print(f"Source: Mizuho official per-draw CSVs")
+    print("Source: Mizuho official per-draw CSVs")
     print(f"Database: {args.db.resolve()}")
     print(f"Parsed draws: {len(records)}")
     for lottery in LotteryType:

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app import config
 from app.main import app
-from app.services import chat_service
+from app.services import chat_service, lottery_update_service
 
 client = TestClient(app)
 
@@ -17,6 +17,39 @@ def test_トップページで画面が返る():
     response = client.get("/")
     assert response.status_code == 200
     assert "宝くじ予想AI" in response.text
+    assert 'id="update-data-button"' in response.text
+    assert 'id="check-status"' in response.text
+    assert '/static/js/app.js?v=20261031-2' in response.text
+
+
+def test_最新情報の更新件数が返る():
+    with patch(
+        "app.api.routes.lottery_update_service.update_latest_draws",
+        return_value=(2, 8),
+    ):
+        response = client.post("/api/lottery-data/update")
+    assert response.status_code == 200
+    assert response.json() == {"added_draws": 2, "added_prizes": 8}
+
+
+def test_DBとの矛盾は409で返す():
+    with patch(
+        "app.api.routes.lottery_update_service.update_latest_draws",
+        side_effect=lottery_update_service.LotteryDataConflictError("DBとの矛盾"),
+    ):
+        response = client.post("/api/lottery-data/update")
+    assert response.status_code == 409
+    assert response.json() == {"detail": "DBとの矛盾"}
+
+
+def test_公式サイトをブラウザーで取得できない場合は502を返す():
+    with patch(
+        "app.api.routes.lottery_update_service.update_latest_draws",
+        side_effect=lottery_update_service.OfficialSiteError("公式サイトを開けません"),
+    ):
+        response = client.post("/api/lottery-data/update")
+    assert response.status_code == 502
+    assert response.json() == {"detail": "公式サイトを開けません"}
 
 
 def test_CSSとJSが配信される():

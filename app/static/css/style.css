@@ -136,6 +136,35 @@ button:disabled {
   color: #555;
 }
 
+.trend-analysis {
+  margin: 16px 0;
+}
+
+.trend-analysis h3,
+.trend-analysis h4 {
+  margin: 12px 0 6px;
+}
+
+.trend-analysis details {
+  margin: 12px 0 16px;
+}
+
+.trend-analysis summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.trend-analysis .table-wrap {
+  margin: 8px 0 16px;
+}
+
+.trend-analysis .odds th,
+.trend-analysis .odds td {
+  white-space: nowrap;
+  text-align: center;
+  padding: 5px 8px;
+}
+
 /* 当せん確率の表 */
 .odds {
   margin: 0 0 16px;
@@ -232,6 +261,24 @@ button:disabled {
 button.secondary {
   color: #333;
   background: #e5e7eb;
+}
+
+.data-update {
+  margin-bottom: 20px;
+}
+
+.data-update button {
+  margin-top: 0;
+}
+
+/* 更新・結果確認の完了内容を見落とさないように表示する */
+.action-status {
+  margin: 10px 0 8px;
+  padding: 10px 12px;
+  color: #174a2b;
+  background: #e8f7ed;
+  border: 1px solid #9bd3ac;
+  border-radius: 8px;
 }
 
 /* 収支の合計 */

@@ -57,7 +57,7 @@ def call(tool, **args):
 def test_道具の一覧():
     assert [tool.name for tool in agent_service.TOOLS] == [
         "lottery_rules", "recent_draws", "draw_result", "number_stats",
-        "winning_odds", "purchase_summary", "cost_simulation",
+        "historical_pattern_analysis", "winning_odds", "purchase_summary", "cost_simulation",
     ]
 
 
@@ -87,6 +87,15 @@ def test_集計の道具(db_path):
     assert result["total_draws"] == 3
     assert result["positions"][0]["most_frequent"][0] == {"number": 1, "count": 3, "gap": 0}
     assert "まだありません" in call(agent_service.number_stats, lottery="loto7")
+
+
+def test_全期間の番号頻度とペア割合の道具(db_path):
+    result = json.loads(call(agent_service.historical_pattern_analysis, lottery="loto6"))
+
+    assert result["total_draws"] == 3
+    assert result["frequency_matrices"][0]["title"] == "本数字の出現回数"
+    assert len(result["cooccurrence_matrices"][0]["counts"]) == 43
+    assert "次回の当選確率ではない" in result["note"]
 
 
 def test_当せん確率の道具():
@@ -124,12 +133,13 @@ def test_エージェントは道具と会話の記憶を持つ():
     try:
         with patch.object(agent_service, "create_agent") as mock_create, \
              patch.object(agent_service, "ChatOpenAI"):
-            agent_service.get_agent()
-            agent_service.get_agent()
+            prompt = agent_service.load_analysis_prompt()
+            agent_service.get_agent(prompt)
+            agent_service.get_agent(prompt)
         mock_create.assert_called_once()
         kwargs = mock_create.call_args.kwargs
         assert kwargs["tools"] == agent_service.TOOLS
-        assert kwargs["system_prompt"] == agent_service.SYSTEM_PROMPT
+        assert kwargs["system_prompt"] == f"{agent_service.SYSTEM_PROMPT}\n\n{prompt}"
         assert kwargs["checkpointer"] is not None
     finally:
         agent_service.get_agent.cache_clear()
@@ -138,8 +148,10 @@ def test_エージェントは道具と会話の記憶を持つ():
 def test_質問すると最後の返答を返し会話の番号を渡す():
     agent = MagicMock()
     agent.invoke.return_value = {"messages": [AIMessage(content="途中"), AIMessage(content="答え")]}
-    with patch.object(agent_service, "get_agent", return_value=agent):
+    with patch.object(agent_service, "load_analysis_prompt", return_value="分析ガイド"), \
+         patch.object(agent_service, "get_agent", return_value=agent) as get_agent:
         assert agent_service.ask("ロト6の最近の結果は？", "thread-1") == "答え"
+    get_agent.assert_called_once_with("分析ガイド")
     args = agent.invoke.call_args.args
     assert args[0] == {"messages": [{"role": "user", "content": "ロト6の最近の結果は？"}]}
     assert args[1] == {"configurable": {"thread_id": "thread-1"}}

@@ -11,13 +11,16 @@ from app.config import MODEL_NAME
 from app.schemas.lottery import LOTO_TIERS, RULES, LotteryType, PlayType
 from app.services.lottery_data import load_average_prizes, load_draw, load_draws
 from app.services.odds_service import calculate_odds
+from app.services.prompt_loader import load_analysis_prompt
 from app.services.purchase_service import expected_return, list_purchases
 from app.services.stats_service import calculate_stats
+from app.services.trend_service import build_history_matrices
 
 SYSTEM_PROMPT = (
     "あなたは宝くじアプリのアシスタントです。"
     "抽選結果・集計・当せん確率・購入の収支などの数字は、必ず道具（ツール）を使って調べ、"
     "道具の結果だけをもとに答えてください。数字を推測で作ってはいけません。"
+    "番号頻度やペアの傾向を質問されたら、全期間の履歴分析ツールを使ってください。"
     "抽選は毎回ランダムで、過去の結果から当せんの確率を上げる方法はありません。"
     "当たりやすくなるかのような言い方はしないでください。"
     "金額は円で、日本語で簡潔に答えてください。"
@@ -112,6 +115,24 @@ def number_stats(lottery: LotteryType, top: int = 10) -> str:
 
 
 @tool
+@_db_guard
+def historical_pattern_analysis(lottery: LotteryType) -> str:
+    """保存されている全期間の番号出現回数と、番号ペア・桁位置ペアの同時出現回数と条件付き割合を返す。"""
+    draws = load_draws(lottery)
+    if not draws:
+        return f"{RULES[lottery].name}の抽選結果がまだありません。"
+    frequencies, cooccurrences = build_history_matrices(lottery, draws)
+    return _to_json({
+        "name": RULES[lottery].name,
+        "period": f"{min(draw.draw_date for draw in draws)}〜{max(draw.draw_date for draw in draws)}",
+        "total_draws": len(draws),
+        "frequency_matrices": [matrix.model_dump() for matrix in frequencies],
+        "cooccurrence_matrices": [matrix.model_dump() for matrix in cooccurrences],
+        "note": "条件付き割合は過去の実績であり、次回の当選確率ではない。",
+    })
+
+
+@tool
 def winning_odds(lottery: LotteryType, numbers: list[int]) -> str:
     """番号1組の、申込タイプ・等級ごとの当せん確率を返す。"""
     try:
@@ -161,26 +182,29 @@ TOOLS = [
     recent_draws,
     draw_result,
     number_stats,
+    historical_pattern_analysis,
     winning_odds,
     purchase_summary,
     cost_simulation,
 ]
 
+_checkpointer = InMemorySaver()
 
-@functools.cache
-def get_agent():
+
+@functools.lru_cache(maxsize=1)
+def get_agent(analysis_prompt: str):
     """道具と会話の記憶を持つエージェントを作る（1回だけ作って使い回す）"""
     return create_agent(
         model=ChatOpenAI(model=MODEL_NAME),
         tools=TOOLS,
-        system_prompt=SYSTEM_PROMPT,
-        checkpointer=InMemorySaver(),
+        system_prompt=f"{SYSTEM_PROMPT}\n\n{analysis_prompt}",
+        checkpointer=_checkpointer,
     )
 
 
 def ask(message: str, thread_id: str) -> str:
     """エージェントに質問し、最後の返答の文章を返す（同じ thread_id なら前のやり取りを覚えている）"""
-    result = get_agent().invoke(
+    result = get_agent(load_analysis_prompt()).invoke(
         {"messages": [{"role": "user", "content": message}]},
         {"configurable": {"thread_id": thread_id}},
     )

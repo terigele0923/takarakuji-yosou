@@ -100,3 +100,8 @@ class Draw(BaseModel):
     draw_date: datetime.date    # 抽選日
     numbers: list[int]          # 本数字（ナンバーズは桁の順）
     bonus: list[int]            # ボーナス数字（ナンバーズは空）
+
+
+class LotteryUpdateResponse(BaseModel):
+    added_draws: int
+    added_prizes: int

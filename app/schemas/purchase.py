@@ -39,6 +39,8 @@ class PurchaseRecord(PurchaseResponse):
     status: PurchaseStatus
     tier: str | None                    # 当たった等級
     prize: int | None                   # 当たった金額（未確認は None、外れは 0）
+    winning_numbers: list[int] | None   # その回の本数字（結果未公開なら None）
+    bonus_numbers: list[int] | None     # その回のボーナス数字（結果未公開なら None）
     expected_return: float | None       # 期待される戻り（当せん確率 × 平均の賞金。賞金のデータがなければ None）
 
 
@@ -57,3 +59,9 @@ class PurchaseSummary(BaseModel):
 class PurchaseListResponse(BaseModel):
     purchases: list[PurchaseRecord]   # 新しい順
     summary: PurchaseSummary
+
+
+class PurchaseCheckResponse(PurchaseListResponse):
+    """結果確認後の一覧と、今回新しく判定できた件数"""
+
+    checked_count: int

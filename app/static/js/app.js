@@ -2,6 +2,9 @@ const form = document.getElementById("predict-form");
 const lotterySelect = document.getElementById("lottery");
 const countSelect = document.getElementById("count");
 const predictButton = document.getElementById("predict-button");
+const updateDataButton = document.getElementById("update-data-button");
+const updateDataStatus = document.getElementById("update-data-status");
+const updateDataError = document.getElementById("update-data-error");
 const errorArea = document.getElementById("error");
 const resultArea = document.getElementById("result");
 const resultTitle = document.getElementById("result-title");
@@ -9,6 +12,10 @@ const resultPeriod = document.getElementById("result-period");
 const commonOdds = document.getElementById("common-odds");
 const commonOddsTable = document.getElementById("common-odds-table");
 const resultSets = document.getElementById("result-sets");
+const trendDescription = document.getElementById("trend-description");
+const trendMatrix = document.getElementById("trend-matrix");
+const frequencyMatrices = document.getElementById("frequency-matrices");
+const cooccurrenceMatrices = document.getElementById("cooccurrence-matrices");
 
 // 一度に予想できる組数の上限（API の MAX_SETS と同じ）
 const MAX_SETS = 10;
@@ -55,6 +62,81 @@ function fillOddsTable(table, odds, withPlayType) {
     if (withPlayType) row.insertCell().textContent = PLAY_TYPE_NAMES[item.play_type];
     row.insertCell().textContent = item.tier;
     row.insertCell().textContent = item.odds_text;
+  }
+}
+
+function fillTrendMatrix(data) {
+  trendMatrix.replaceChildren();
+  const header = trendMatrix.insertRow();
+  for (const label of ["順位", "番号組", "傾向スコア", "平均距離", "最も近い過去回"]) {
+    header.appendChild(createElement("th", label));
+  }
+  const matchesLabel = data.lottery.startsWith("numbers") ? "桁一致" : "本数字一致";
+  const distributionLength = data.sets[0]?.match_distribution.length ?? 0;
+  for (let matches = 0; matches < distributionLength; matches++) {
+    header.appendChild(createElement("th", matches + matchesLabel));
+  }
+
+  for (const set of data.sets) {
+    const row = trendMatrix.insertRow();
+    row.insertCell().textContent = String(set.rank);
+    row.insertCell().textContent = set.numbers.join(" ");
+    row.insertCell().textContent = set.trend_score.toFixed(2) + "/100";
+    row.insertCell().textContent = set.average_distance.toFixed(4);
+    row.insertCell().textContent =
+      "第" + set.closest_round + "回 (" + set.closest_distance.toFixed(4) + ")";
+    for (const count of set.match_distribution) {
+      row.insertCell().textContent = count.toLocaleString();
+    }
+  }
+}
+
+function fillFrequencyMatrices(matrices) {
+  frequencyMatrices.replaceChildren();
+  for (const matrix of matrices) {
+    const heading = createElement("h4", matrix.title);
+    const wrapper = createElement("div", undefined, "table-wrap");
+    const table = createElement("table", undefined, "odds");
+    const header = table.insertRow();
+    header.appendChild(createElement("th", "番号"));
+    for (const label of matrix.labels) header.appendChild(createElement("th", label));
+    const row = table.insertRow();
+    row.appendChild(createElement("th", "出現回数"));
+    for (const count of matrix.counts) {
+      row.insertCell().textContent = count.toLocaleString();
+    }
+    wrapper.appendChild(table);
+    frequencyMatrices.append(heading, wrapper);
+  }
+}
+
+function fillCooccurrenceMatrices(matrices) {
+  cooccurrenceMatrices.replaceChildren();
+  for (const matrix of matrices) {
+    const heading = createElement("h4", matrix.title);
+    const wrapper = createElement("div", undefined, "table-wrap");
+    const table = createElement("table", undefined, "odds");
+    const header = table.insertRow();
+    header.appendChild(createElement("th", "行 / 列"));
+    for (const label of matrix.column_labels) {
+      header.appendChild(createElement("th", label));
+    }
+
+    for (let rowIndex = 0; rowIndex < matrix.row_labels.length; rowIndex++) {
+      const row = table.insertRow();
+      row.appendChild(createElement("th", matrix.row_labels[rowIndex]));
+      for (let columnIndex = 0; columnIndex < matrix.column_labels.length; columnIndex++) {
+        const count = matrix.counts[rowIndex][columnIndex];
+        const probability = matrix.probabilities[rowIndex][columnIndex];
+        const cell = row.insertCell();
+        cell.textContent = count.toLocaleString() + " (" + (probability * 100).toFixed(1) + "%)";
+        cell.title =
+          count.toLocaleString() + "回 / 行番号の出現 " +
+          matrix.row_draw_counts[rowIndex].toLocaleString() + "回";
+      }
+    }
+    wrapper.appendChild(table);
+    cooccurrenceMatrices.append(heading, wrapper);
   }
 }
 
@@ -159,6 +241,15 @@ function showResult(data) {
   resultPeriod.textContent =
     "集計期間：" + data.first_date + "〜" + data.last_date +
     "（第" + data.last_round + "回まで、" + data.total_draws + "回分）";
+  trendDescription.textContent =
+    "全保存期間 " + data.trend_first_date + "〜" + data.trend_last_date +
+    "（" + data.trend_draw_count.toLocaleString() + "回）を " + data.trend_metric +
+    " で比較した、今回の候補組どうしの過去データ類似度です。当選確率ではありません。" +
+    "距離が小さい候補を上位に表示します。";
+  fillTrendMatrix(data);
+  fillFrequencyMatrices(data.frequency_matrices);
+  fillCooccurrenceMatrices(data.cooccurrence_matrices);
+  document.getElementById("history-analysis").open = false;
 
   // ロト系はどの組も同じ確率なので、表を1つだけ出す
   commonOddsTable.replaceChildren();
@@ -199,6 +290,35 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+updateDataButton.addEventListener("click", async () => {
+  updateDataButton.disabled = true;
+  updateDataButton.textContent = "更新中...";
+  updateDataStatus.hidden = true;
+  updateDataError.hidden = true;
+
+  try {
+    const response = await fetch("/api/lottery-data/update", {
+      method: "POST",
+    });
+    if (!response.ok) {
+      updateDataError.textContent = await errorMessage(response);
+      updateDataError.hidden = false;
+      return;
+    }
+
+    const result = await response.json();
+    updateDataStatus.textContent = "公式サイトを確認しました（当せん番号 " +
+      result.added_draws + " 件、賞金 " + result.added_prizes + " 件を更新）。";
+    updateDataStatus.hidden = false;
+  } catch (e) {
+    updateDataError.textContent = "サーバーに接続できませんでした";
+    updateDataError.hidden = false;
+  } finally {
+    updateDataButton.disabled = false;
+    updateDataButton.textContent = "最新情報を更新";
+  }
+});
+
 loadOptions();
 
 // ---- タブの切り替え ----
@@ -218,6 +338,7 @@ for (const tab of tabs) {
 // ---- 収支タブ ----
 
 const checkButton = document.getElementById("check-button");
+const checkStatus = document.getElementById("check-status");
 const purchasesError = document.getElementById("purchases-error");
 const purchasesTable = document.getElementById("purchases-table");
 const purchasesEmpty = document.getElementById("purchases-empty");
@@ -259,7 +380,10 @@ function showPurchases(purchases) {
   if (purchases.length === 0) return;
 
   const header = purchasesTable.insertRow();
-  for (const title of ["種類", "回", "番号", "申込タイプ", "金額", "結果", "賞金", "購入日時"]) {
+  for (const title of [
+    "種類", "回", "購入番号", "当せん番号", "ボーナス番号",
+    "申込タイプ", "金額", "結果", "賞金", "購入日時",
+  ]) {
     header.appendChild(createElement("th", title));
   }
   for (const purchase of purchases) {
@@ -267,6 +391,12 @@ function showPurchases(purchases) {
     row.insertCell().textContent = purchase.name;
     row.insertCell().textContent = "第" + purchase.round + "回";
     row.insertCell().textContent = purchase.numbers.join(", ");
+    row.insertCell().textContent = purchase.winning_numbers === null
+      ? "-"
+      : purchase.winning_numbers.join(", ");
+    row.insertCell().textContent = purchase.bonus_numbers === null
+      ? "-"
+      : (purchase.bonus_numbers.length === 0 ? "なし" : purchase.bonus_numbers.join(", "));
     row.insertCell().textContent = PLAY_TYPE_NAMES[purchase.play_type];
     row.insertCell().textContent = yen(purchase.price);
     const status = row.insertCell();
@@ -285,14 +415,16 @@ async function loadPurchases(method, url) {
     if (!response.ok) {
       purchasesError.textContent = await errorMessage(response);
       purchasesError.hidden = false;
-      return;
+      return null;
     }
     const data = await response.json();
     showSummary(data.summary);
     showPurchases(data.purchases);
+    return data;
   } catch (e) {
     purchasesError.textContent = "サーバーに接続できませんでした";
     purchasesError.hidden = false;
+    return null;
   }
 }
 
@@ -300,7 +432,14 @@ async function loadPurchases(method, url) {
 checkButton.addEventListener("click", async () => {
   checkButton.disabled = true;
   checkButton.textContent = "確認中...";
-  await loadPurchases("POST", "/api/purchases/check");
+  checkStatus.hidden = true;
+  const result = await loadPurchases("POST", "/api/purchases/check");
+  if (result) {
+    checkStatus.textContent = result.checked_count === 0
+      ? "確認しました。新しく確認できる抽せん結果はありません。"
+      : result.checked_count + " 件の購入結果を新しく確認しました。";
+    checkStatus.hidden = false;
+  }
   checkButton.disabled = false;
   checkButton.textContent = "結果を確認";
 });
