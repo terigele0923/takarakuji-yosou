@@ -27,7 +27,9 @@ class PredictedSet(BaseModel):
     numbers: list[int]       # 番号（ロト系は小さい順、ナンバーズは左の桁から）
     reason: str              # 選んだ理由
     odds: list[TierOdds]     # 申込タイプ・等級ごとの当せん確率
-    rank: int                # 過去データとの類似度順位
+    rank: int                # 偏り予測スコア順位
+    bias_score: float         # 長期・直近・ペアの偏りを統合した0〜100のスコア
+    bias_components: dict[str, float]  # 偏りスコアの内訳
     trend_score: float        # 過去データとの類似度（当せん確率ではない）
     average_distance: float   # 過去の全抽せん結果との平均距離
     closest_round: int        # 距離が最小だった過去の回
@@ -55,6 +57,16 @@ class CooccurrenceMatrix(BaseModel):
     row_draw_counts: list[int]
 
 
+class BiasBacktest(BaseModel):
+    """過去の各時点で、それ以前のデータだけを使った偏り検証"""
+
+    evaluated_draws: int
+    actual_average_score: float
+    random_average_score: float
+    score_lift_percent: float
+    above_random_rate: float
+
+
 class PredictResponse(BaseModel):
     lottery: LotteryType
     name: str                    # 表示名
@@ -71,16 +83,5 @@ class PredictResponse(BaseModel):
     trend_last_date: datetime.date
     frequency_matrices: list[FrequencyMatrix]
     cooccurrence_matrices: list[CooccurrenceMatrix]
-
-
-class AiPredictedSet(BaseModel):
-    """AI に返してもらう番号1組"""
-
-    numbers: list[int] = Field(description="選んだ番号。ナンバーズは左の桁から順に1桁ずつ")
-    reason: str = Field(description="選んだ理由。集計結果の数字を使って日本語で100文字以内")
-
-
-class PredictionOutput(BaseModel):
-    """AI に返してもらう予想の形"""
-
-    sets: list[AiPredictedSet] = Field(description="指定された組数ぶんの番号の組")
+    prediction_method: str
+    backtest: BiasBacktest

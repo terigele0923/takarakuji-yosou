@@ -17,6 +17,7 @@ from app.schemas.purchase import (
 from app.services.judge_service import judge
 from app.services.lottery_data import load_average_prizes, load_prize, validate_numbers
 from app.services.odds_service import available_play_types, calculate_odds
+from app.utils.number_codec import decode_numbers, encode_numbers
 
 
 def save_purchase(request: PurchaseRequest, db_path: Path = DB_PATH) -> PurchaseResponse:
@@ -42,7 +43,7 @@ def save_purchase(request: PurchaseRequest, db_path: Path = DB_PATH) -> Purchase
             (
                 request.lottery.value,
                 request.round,
-                ",".join(str(number) for number in numbers),
+                encode_numbers(numbers),
                 request.play_type.value,
                 rule.price,
                 purchased_at.isoformat(),
@@ -79,10 +80,10 @@ def check_results(db_path: Path = DB_PATH) -> PurchaseCheckResponse:
         draw = Draw(
             round=row["round"],
             draw_date=row["draw_date"],
-            numbers=_split(row["draw_numbers"]),
-            bonus=_split(row["draw_bonus"]),
+            numbers=decode_numbers(row["draw_numbers"]),
+            bonus=decode_numbers(row["draw_bonus"]),
         )
-        tier = judge(lottery, PlayType(row["play_type"]), _split(row["numbers"]), draw)
+        tier = judge(lottery, PlayType(row["play_type"]), decode_numbers(row["numbers"]), draw)
         if tier is None:
             new_tier, new_prize = None, 0
         else:
@@ -144,9 +145,9 @@ def _to_record(row, average_prizes: dict[str, float]) -> PurchaseRecord:
     """DB の1行を、結果と期待される戻りを付けた購入1件分にする"""
     lottery = LotteryType(row["lottery"])
     play_type = PlayType(row["play_type"])
-    numbers = _split(row["numbers"])
-    winning_numbers = _split(row["draw_numbers"]) if row["draw_numbers"] is not None else None
-    bonus_numbers = _split(row["draw_bonus"]) if row["draw_bonus"] is not None else None
+    numbers = decode_numbers(row["numbers"])
+    winning_numbers = decode_numbers(row["draw_numbers"]) if row["draw_numbers"] is not None else None
+    bonus_numbers = decode_numbers(row["draw_bonus"]) if row["draw_bonus"] is not None else None
     return PurchaseRecord(
         id=row["id"],
         lottery=lottery,
@@ -188,8 +189,3 @@ def _summarize(records: list[PurchaseRecord]) -> PurchaseSummary:
         expected_return=sum(record.expected_return or 0 for record in records),
         expected_is_partial=any(record.expected_return is None for record in records),
     )
-
-
-def _split(text: str) -> list[int]:
-    """カンマ区切りの文字列を番号の一覧にする"""
-    return [int(value) for value in text.split(",")] if text else []

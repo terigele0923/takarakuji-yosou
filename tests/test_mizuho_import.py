@@ -5,8 +5,11 @@ from pathlib import Path
 import pytest
 
 from app.schemas.lottery import LotteryType
-from scripts.import_mizuho_data import apply_records, compare_database, parse_mizuho_csv
-
+from app.services.mizuho_import_service import (
+    apply_records,
+    compare_database,
+    parse_mizuho_csv,
+)
 
 MINILOTO_CSV = """A51
 第0600回ミニロト,数字選択式全国自治宝くじ,平成23年2月8日,東京 宝くじドリーム館

@@ -50,7 +50,7 @@ PowerShell を開いて実行する。
 python --version
 ```
 
-確認：`Python 3.10` 以上（例：`Python 3.14.0`）が表示されればよい。
+確認：`Python 3.10`〜`3.14`（推奨は3.14）が表示されればよい。Python 3.15では一部依存パッケージに対応ホイールがない場合がある。
 `python` が見つからないときは `py --version` を試す。表示されたら、以下の `python` をすべて `py` に読み替える。
 
 ### B-2. zip を展開する
@@ -92,9 +92,10 @@ python -m venv .venv
 
 ```powershell
 .venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m playwright install chromium
 ```
 
-確認：最後に `Successfully installed ...` と表示されればよい（数分かかることがある）。
+確認：依存パッケージとChromiumのインストールがエラーなく終了すればよい（数分かかることがある）。
 
 ### B-6. VS Code に仮想環境を使わせる
 
@@ -107,7 +108,9 @@ python -m venv .venv
 .venv\Scripts\python -m pytest tests -q
 ```
 
-確認：最後に `153 passed` のように表示され、`failed` がなければよい。
+確認：最後に `passed` と表示され、`failed` がなければよい。
+
+テストは除外オプションなしで全件実行する。公式CSV解析はアプリの共通サービスを直接テストし、CLI専用コードとWeb更新処理の重複を作らない構造になっている。
 
 ### B-8. API キーと DB を確かめる
 
@@ -119,30 +122,26 @@ Select-String -Path .env -Pattern '^OPENAI_API_KEY=.+' -Quiet
 
 確認：`True` と表示されればよい。`False` なら `.env` を開き、`OPENAI_API_KEY=` のあとに API キーを書く。
 
-テスト用の DB に、必要な表（抽選結果・賞金・購入の記録）と仮の賞金をそろえる。
-何度実行しても、今あるデータはそのまま残る（足りないものだけが足される）。
+DB に必要な表（抽選結果・賞金・購入の記録）があることを確認する。
 
 ```powershell
-.venv\Scripts\python -c "import sqlite3; sqlite3.connect('data/sample.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
-$env:LOTTERY_DB_PATH = "data/sample.db"
-.venv\Scripts\python scripts/seed_sample_data.py
+.venv\Scripts\python -c "import sqlite3; sqlite3.connect('data/lottery.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
 ```
 
 確認：
 
 ```powershell
-.venv\Scripts\python -c "import sqlite3; c = sqlite3.connect('data/sample.db'); print(c.execute('SELECT lottery, COUNT(*) FROM draws GROUP BY lottery').fetchall()); print(c.execute('SELECT COUNT(DISTINCT lottery || round) FROM prizes').fetchone())"
+.venv\Scripts\python -c "import sqlite3; c = sqlite3.connect('data/lottery.db'); print(c.execute('SELECT lottery, COUNT(*) FROM draws GROUP BY lottery').fetchall()); print(c.execute('PRAGMA quick_check').fetchone())"
 ```
 
-1行目に `[('loto6', 500), ('loto7', 500), ('miniloto', 500), ('numbers3', 500), ('numbers4', 500)]`、2行目に `(2500,)` と表示されればよい。
+1行目に登録済みの種類別件数、2行目に `('ok',)` と表示されればよい。抽せん結果が空の場合は `LOTTERY_DATA_IMPORT.md` の手順で公式データを登録する。
 
 ### B-9. 起動する
 
-2行とも、同じターミナルで実行する。
+プロジェクト専用のPythonから起動スクリプトを実行する。`uvicorn.exe` はWindowsセキュリティにブロックされる場合があるため直接実行しない。
 
 ```powershell
-$env:LOTTERY_DB_PATH = "data/sample.db"
-.venv\Scripts\uvicorn app.main:app --reload
+.venv\Scripts\python scripts\run_server.py
 ```
 
 確認：`Uvicorn running on http://127.0.0.1:8000` と `Application startup complete.` が表示されればよい。
@@ -151,20 +150,13 @@ $env:LOTTERY_DB_PATH = "data/sample.db"
 
 ブラウザで http://localhost:8000 を開く。画面には「予想」「収支」「相談」の3つのタブがある。
 
-1. **予想タブ**：種類と組数を選んで「予想する」を押す。番号・理由・当せん確率が表示される。組ごとの「購入した」を押すと、次の回の購入として記録される
+1. **予想タブ**：種類と組数を選んで「予想する」を押す。長期頻度30%・時間加重直近頻度50%・ペア共起20%から作った候補、偏りスコア、時系列バックテスト、理論上の当せん確率が表示される。組ごとの「購入した」を押すと、次の回の購入として記録される
 2. **収支タブ**：記録した購入と、使った金額・当たった金額・収支が表示される。この時点では結果は「未確認」
-3. 購入した回の結果を作る（テスト用。今の回数が 500 なら 501 にする）。サーバーを動かしたまま、**別のターミナル**で実行する
+3. 公式サイトで購入回の結果が公開されたら、予想タブの「最新情報を更新」を押す
+4. **収支タブ**で「結果を確認」を押す。購入が「当せん」か「外れ」になり、当せん番号・賞金・収支が更新される
+5. **相談タブ**：「ロト6の最近5回の結果は？」「偏りスコアは何を表す？」「私の収支は？」などを質問する
 
-   ```powershell
-   $env:LOTTERY_DB_PATH = "data/sample.db"
-   .venv\Scripts\python scripts/seed_sample_data.py --count 501
-   ```
-
-4. **収支タブ**で「結果を確認」を押す。購入が「当せん」か「外れ」になり、収支が更新される
-5. **相談タブ**：「ロト6の最近5回の結果は？」「ロト7を毎週2口、1年買ったら収支はどうなりそう？」「私の収支は？」などを質問する
-
-- 「予想する」と相談タブの「送信」は、OpenAI API が呼ばれて料金がかかる（1回で数回呼ぶことがある）。
-- テスト用の DB の賞金は仮の金額で、本物ではない。
+- 「予想する」はローカルの統計計算だけで、OpenAI APIを呼ばない。相談タブの「送信」はOpenAI APIを呼ぶため料金がかかる。
 - 止めるときは、ターミナルで `Ctrl + C` を押す。
 
 ---
@@ -174,11 +166,10 @@ $env:LOTTERY_DB_PATH = "data/sample.db"
 VS Code で `C:\Langchain_sample` を開き、新しいターミナルで実行する。
 
 ```powershell
-$env:LOTTERY_DB_PATH = "data/sample.db"
-.venv\Scripts\uvicorn app.main:app --reload
+.venv\Scripts\python scripts\run_server.py
 ```
 
-`$env:LOTTERY_DB_PATH` の切り替えは、そのターミナルの中だけで有効。ターミナルを開き直したら、もう一度実行する。
+別のDBを使う場合の `$env:LOTTERY_DB_PATH` は、そのターミナルの中だけで有効。ターミナルを開き直したら、もう一度設定する。
 
 ---
 
@@ -192,23 +183,19 @@ $env:LOTTERY_DB_PATH = "data/sample.db"
 | `pip install` が失敗する | Python が 3.10 より古くないか確かめる（B-1） |
 | 起動時に `OPENAI_API_KEY が設定されていません` | B-8 の API キーの確認を行う |
 | 起動時に `Address already in use`（8000番が使用中） | ほかのターミナルでサーバーが動いていないか確かめて止める。またはコマンドの最後に `--port 8001` を付けて起動し、http://localhost:8001 を開く |
-| 画面で「○○の抽選結果がまだありません」 | 起動したターミナルで `$env:LOTTERY_DB_PATH = "data/sample.db"` を実行していない、または別のサーバーにつながっている。すべてのサーバーを止めてから、B-9 をやり直す |
-| 画面で「抽選結果のデータベースが準備されていません」 | `data/sample.db` がないか、表がない。下の「テスト用の DB を作り直す」を行う |
+| 画面で「○○の抽選結果がまだありません」 | `data/lottery.db` にその種類の履歴がない。`LOTTERY_DATA_IMPORT.md` の手順で公式データを登録する |
+| 画面で「抽選結果のデータベースが準備されていません」 | `data/lottery.db` がないか、表がない。B-8の表作成コマンドを実行する |
 | 画面で「AIに接続できませんでした」 | API キーが正しいか、インターネットにつながっているか、OpenAI の利用残高があるかを確かめる |
 | Mac で動かす | `.venv\Scripts\` を `.venv/bin/` に、`.venv\Scripts\Activate.ps1` を `source .venv/bin/activate` に、`$env:LOTTERY_DB_PATH = "data/sample.db"` を `export LOTTERY_DB_PATH=data/sample.db` に読み替える |
 
-### テスト用の DB を作り直す
+### DB の表を作り直す
 
 ```powershell
 # 表を作る（表がもうあれば table draws already exists と出るが、問題ない）
-.venv\Scripts\python -c "import sqlite3; sqlite3.connect('data/sample.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
-
-# テスト用のデータを入れる（5種類 × 500回分。保存済みの回は飛ばす）
-$env:LOTTERY_DB_PATH = "data/sample.db"
-.venv\Scripts\python scripts/seed_sample_data.py
+.venv\Scripts\python -c "import sqlite3; sqlite3.connect('data/lottery.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
 ```
 
-確認：「ロト6: 500件を保存しました」のような行が5種類分表示される（2回目以降は「0件」になる）。
+公式履歴の登録は `LOTTERY_DATA_IMPORT.md` を参照する。
 
 ---
 

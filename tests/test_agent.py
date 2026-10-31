@@ -57,7 +57,8 @@ def call(tool, **args):
 def test_道具の一覧():
     assert [tool.name for tool in agent_service.TOOLS] == [
         "lottery_rules", "recent_draws", "draw_result", "number_stats",
-        "historical_pattern_analysis", "winning_odds", "purchase_summary", "cost_simulation",
+        "historical_pattern_analysis", "winning_odds", "bias_prediction",
+        "purchase_summary", "cost_simulation",
     ]
 
 
@@ -102,6 +103,15 @@ def test_当せん確率の道具():
     odds = json.loads(call(agent_service.winning_odds, lottery="loto6", numbers=[1, 2, 3, 4, 5, 6]))
     assert odds[0]["tier"] == "1等"
     assert odds[0]["odds_text"] == "1/6,096,454"
+
+
+def test_偏り予想の道具(db_path):
+    with patch("app.services.predict_service.load_draws", lambda lottery: load_draws(lottery, db_path)):
+        result = json.loads(call(agent_service.bias_prediction, lottery="loto6", count=2))
+    assert result["next_round"] == 4
+    assert len(result["sets"]) == 2
+    assert "bias_score" in result["sets"][0]
+    assert "backtest" in result
 
 
 def test_収支の道具(db_path):

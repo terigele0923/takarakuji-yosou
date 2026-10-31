@@ -49,7 +49,7 @@ def test_ナンバーズ3は桁ごとに数える():
     stats = calculate_stats(LotteryType.NUMBERS3, draws)
 
     assert len(stats.positions) == 3
-    assert [stat.number for stat in stats.positions[0]] == list(range(0, 10))
+    assert [stat.number for stat in stats.positions[0]] == list(range(10))
     assert stat_of(stats, 0, position=0).count == 2
     assert stat_of(stats, 0, position=0).gap == 0
     assert stat_of(stats, 8, position=1).count == 1
