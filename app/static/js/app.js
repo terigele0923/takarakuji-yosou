@@ -9,6 +9,10 @@ const resultPeriod = document.getElementById("result-period");
 const commonOdds = document.getElementById("common-odds");
 const commonOddsTable = document.getElementById("common-odds-table");
 const resultSets = document.getElementById("result-sets");
+const trendDescription = document.getElementById("trend-description");
+const trendMatrix = document.getElementById("trend-matrix");
+const frequencyMatrices = document.getElementById("frequency-matrices");
+const cooccurrenceMatrices = document.getElementById("cooccurrence-matrices");
 
 // 一度に予想できる組数の上限（API の MAX_SETS と同じ）
 const MAX_SETS = 10;
@@ -55,6 +59,81 @@ function fillOddsTable(table, odds, withPlayType) {
     if (withPlayType) row.insertCell().textContent = PLAY_TYPE_NAMES[item.play_type];
     row.insertCell().textContent = item.tier;
     row.insertCell().textContent = item.odds_text;
+  }
+}
+
+function fillTrendMatrix(data) {
+  trendMatrix.replaceChildren();
+  const header = trendMatrix.insertRow();
+  for (const label of ["順位", "番号組", "傾向スコア", "平均距離", "最も近い過去回"]) {
+    header.appendChild(createElement("th", label));
+  }
+  const matchesLabel = data.lottery.startsWith("numbers") ? "桁一致" : "本数字一致";
+  const distributionLength = data.sets[0]?.match_distribution.length ?? 0;
+  for (let matches = 0; matches < distributionLength; matches++) {
+    header.appendChild(createElement("th", matches + matchesLabel));
+  }
+
+  for (const set of data.sets) {
+    const row = trendMatrix.insertRow();
+    row.insertCell().textContent = String(set.rank);
+    row.insertCell().textContent = set.numbers.join(" ");
+    row.insertCell().textContent = set.trend_score.toFixed(2) + "/100";
+    row.insertCell().textContent = set.average_distance.toFixed(4);
+    row.insertCell().textContent =
+      "第" + set.closest_round + "回 (" + set.closest_distance.toFixed(4) + ")";
+    for (const count of set.match_distribution) {
+      row.insertCell().textContent = count.toLocaleString();
+    }
+  }
+}
+
+function fillFrequencyMatrices(matrices) {
+  frequencyMatrices.replaceChildren();
+  for (const matrix of matrices) {
+    const heading = createElement("h4", matrix.title);
+    const wrapper = createElement("div", undefined, "table-wrap");
+    const table = createElement("table", undefined, "odds");
+    const header = table.insertRow();
+    header.appendChild(createElement("th", "番号"));
+    for (const label of matrix.labels) header.appendChild(createElement("th", label));
+    const row = table.insertRow();
+    row.appendChild(createElement("th", "出現回数"));
+    for (const count of matrix.counts) {
+      row.insertCell().textContent = count.toLocaleString();
+    }
+    wrapper.appendChild(table);
+    frequencyMatrices.append(heading, wrapper);
+  }
+}
+
+function fillCooccurrenceMatrices(matrices) {
+  cooccurrenceMatrices.replaceChildren();
+  for (const matrix of matrices) {
+    const heading = createElement("h4", matrix.title);
+    const wrapper = createElement("div", undefined, "table-wrap");
+    const table = createElement("table", undefined, "odds");
+    const header = table.insertRow();
+    header.appendChild(createElement("th", "行 / 列"));
+    for (const label of matrix.column_labels) {
+      header.appendChild(createElement("th", label));
+    }
+
+    for (let rowIndex = 0; rowIndex < matrix.row_labels.length; rowIndex++) {
+      const row = table.insertRow();
+      row.appendChild(createElement("th", matrix.row_labels[rowIndex]));
+      for (let columnIndex = 0; columnIndex < matrix.column_labels.length; columnIndex++) {
+        const count = matrix.counts[rowIndex][columnIndex];
+        const probability = matrix.probabilities[rowIndex][columnIndex];
+        const cell = row.insertCell();
+        cell.textContent = count.toLocaleString() + " (" + (probability * 100).toFixed(1) + "%)";
+        cell.title =
+          count.toLocaleString() + "回 / 行番号の出現 " +
+          matrix.row_draw_counts[rowIndex].toLocaleString() + "回";
+      }
+    }
+    wrapper.appendChild(table);
+    cooccurrenceMatrices.append(heading, wrapper);
   }
 }
 
@@ -159,6 +238,15 @@ function showResult(data) {
   resultPeriod.textContent =
     "集計期間：" + data.first_date + "〜" + data.last_date +
     "（第" + data.last_round + "回まで、" + data.total_draws + "回分）";
+  trendDescription.textContent =
+    "全保存期間 " + data.trend_first_date + "〜" + data.trend_last_date +
+    "（" + data.trend_draw_count.toLocaleString() + "回）を " + data.trend_metric +
+    " で比較した、今回の候補組どうしの過去データ類似度です。当選確率ではありません。" +
+    "距離が小さい候補を上位に表示します。";
+  fillTrendMatrix(data);
+  fillFrequencyMatrices(data.frequency_matrices);
+  fillCooccurrenceMatrices(data.cooccurrence_matrices);
+  document.getElementById("history-analysis").open = false;
 
   // ロト系はどの組も同じ確率なので、表を1つだけ出す
   commonOddsTable.replaceChildren();

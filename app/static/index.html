@@ -38,6 +38,23 @@
         <h2 id="result-title"></h2>
         <p id="result-period" class="period"></p>
 
+        <section class="trend-analysis">
+          <h3>過去データとの傾向ランキング</h3>
+          <p id="trend-description" class="hint"></p>
+          <div class="table-wrap">
+            <table id="trend-matrix" class="odds"></table>
+          </div>
+          <details id="history-analysis">
+            <summary>番号の出現回数・ペア分析を見る</summary>
+            <p class="hint">
+              ペア割合は「行の番号が出た過去回のうち、列の番号も出た割合」です。
+              過去の記録上の割合であり、次回の当選確率を示すものではありません。
+            </p>
+            <div id="frequency-matrices"></div>
+            <div id="cooccurrence-matrices"></div>
+          </details>
+        </section>
+
         <div id="common-odds" hidden>
           <h3>等級ごとの当せん確率</h3>
           <p class="hint">どの組を選んでも、当せん確率は同じです。</p>
