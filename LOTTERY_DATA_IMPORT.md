@@ -23,7 +23,8 @@
 | ファイル・技術 | 役割 |
 |---|---|
 | [scripts/mizuho_collect.js](./scripts/mizuho_collect.js) | ブラウザーから公式CSVを取得し、JSONファイルにまとめる JavaScript |
-| [scripts/import_mizuho_data.py](./scripts/import_mizuho_data.py) | JSON内のCSVを検査して、SQLiteに登録する Python スクリプト |
+| [app/services/mizuho_import_service.py](./app/services/mizuho_import_service.py) | CSV解析、DB比較、バックアップ付き保存をWeb更新とCLIへ提供する共通サービス |
+| [scripts/import_mizuho_data.py](./scripts/import_mizuho_data.py) | JSONファイル・引数を受け取り、共通サービスを呼び出すCLI入口 |
 | [scripts/create_tables.sql](./scripts/create_tables.sql) | 抽せん結果・賞金・購入記録を保存する表の定義 |
 | ブラウザーの `fetch` | 公式ページと同じ接続元からCSVを取得する機能 |
 | `TextDecoder("shift_jis")` | 日本語の公式CSVを文字化けせず読み取るための変換 |
@@ -43,6 +44,8 @@
 準備後は、アプリの「予想」タブで「最新情報を更新」を押すだけです。通常表示のブラウザーがみずほ銀行の公式ページを開き、ナンバーズ3・4、ミニロト、ロト6、ロト7について最新回を確認します。サーバーから公式サイトへ直接HTTP接続すると403になるため、この更新処理は公式ページを開いたブラウザー内でCSVを取得します。
 
 取得したCSVはサーバー側で検査し、DBにない最新回の抽せん結果・賞金だけを追加します。登録済みなら追加せず、既存データと内容が矛盾する場合は登録を中止します。追加前にはDBのバックアップも作成します。
+
+更新された `draws` は、次回の予想から偏りモデルへ自動的に反映されます。長期頻度、半減期40回の時間加重直近頻度、番号ペア共起、時系列バックテストは予想リクエストごとに現在のDBから再計算されます。賞金の `prizes` は収支判定に使用し、予想番号の偏りスコアには使用しません。
 
 ## 取り込みの流れ
 

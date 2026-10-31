@@ -19,7 +19,7 @@ def test_トップページで画面が返る():
     assert "宝くじ予想AI" in response.text
     assert 'id="update-data-button"' in response.text
     assert 'id="check-status"' in response.text
-    assert '/static/js/app.js?v=20261031-2' in response.text
+    assert '/static/js/app.js?v=20261031-3' in response.text
 
 
 def test_最新情報の更新件数が返る():
@@ -100,16 +100,17 @@ def test_AIに接続できないと503とメッセージが返る():
 
 
 def test_APIキーがあれば起動できる():
-    with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
-        with TestClient(app) as started_client:
-            assert started_client.get("/").status_code == 200
+    with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), TestClient(app) as started_client:
+        assert started_client.get("/").status_code == 200
 
 
 def test_APIキーがないと起動時にエラーになる():
-    with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
-            with TestClient(app):
-                pass
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        pytest.raises(RuntimeError, match="OPENAI_API_KEY"),
+        TestClient(app),
+    ):
+        pass
 
 
 def test_サービスがモデルの返答の文章を返す():

@@ -68,7 +68,10 @@ function fillOddsTable(table, odds, withPlayType) {
 function fillTrendMatrix(data) {
   trendMatrix.replaceChildren();
   const header = trendMatrix.insertRow();
-  for (const label of ["順位", "番号組", "傾向スコア", "平均距離", "最も近い過去回"]) {
+  for (const label of [
+    "順位", "番号組", "偏り予測スコア", "直近偏り", "長期偏り", "ペア偏り",
+    "過去類似度", "平均距離", "最も近い過去回",
+  ]) {
     header.appendChild(createElement("th", label));
   }
   const matchesLabel = data.lottery.startsWith("numbers") ? "桁一致" : "本数字一致";
@@ -81,6 +84,10 @@ function fillTrendMatrix(data) {
     const row = trendMatrix.insertRow();
     row.insertCell().textContent = String(set.rank);
     row.insertCell().textContent = set.numbers.join(" ");
+    row.insertCell().textContent = set.bias_score.toFixed(2) + "/100";
+    row.insertCell().textContent = set.bias_components.recent.toFixed(4);
+    row.insertCell().textContent = set.bias_components.long_term.toFixed(4);
+    row.insertCell().textContent = set.bias_components.pair.toFixed(4);
     row.insertCell().textContent = set.trend_score.toFixed(2) + "/100";
     row.insertCell().textContent = set.average_distance.toFixed(4);
     row.insertCell().textContent =
@@ -242,10 +249,13 @@ function showResult(data) {
     "集計期間：" + data.first_date + "〜" + data.last_date +
     "（第" + data.last_round + "回まで、" + data.total_draws + "回分）";
   trendDescription.textContent =
-    "全保存期間 " + data.trend_first_date + "〜" + data.trend_last_date +
-    "（" + data.trend_draw_count.toLocaleString() + "回）を " + data.trend_metric +
-    " で比較した、今回の候補組どうしの過去データ類似度です。当選確率ではありません。" +
-    "距離が小さい候補を上位に表示します。";
+    "予測方式：" + data.prediction_method + "。全保存期間 " +
+    data.trend_first_date + "〜" + data.trend_last_date + "（" +
+    data.trend_draw_count.toLocaleString() + "回）から偏りを推定しました。" +
+    "時系列バックテストは直近 " + data.backtest.evaluated_draws +
+    " 回を評価し、実結果の偏りスコアがランダム平均を上回った割合は " +
+    (data.backtest.above_random_rate * 100).toFixed(1) + "%です。" +
+    "スコア差は " + data.backtest.score_lift_percent.toFixed(2) + "%です。";
   fillTrendMatrix(data);
   fillFrequencyMatrices(data.frequency_matrices);
   fillCooccurrenceMatrices(data.cooccurrence_matrices);

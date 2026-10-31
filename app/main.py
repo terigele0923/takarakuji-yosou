@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.errors import register_exception_handlers
 from app.api.routes import router
 from app.config import STATIC_DIR, check_api_key
 
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="宝くじ予想AI", lifespan=lifespan)
+register_exception_handlers(app)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(router)
 

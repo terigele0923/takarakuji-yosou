@@ -4,6 +4,7 @@ from pathlib import Path
 from app.config import DB_PATH
 from app.db import connect
 from app.schemas.lottery import RULES, Draw, LotteryType
+from app.utils.number_codec import decode_numbers, encode_numbers
 
 
 def load_draws(lottery: LotteryType, db_path: Path = DB_PATH) -> list[Draw]:
@@ -70,8 +71,8 @@ def _to_draw(row) -> Draw:
     return Draw(
         round=row["round"],
         draw_date=row["draw_date"],
-        numbers=_split(row["numbers"]),
-        bonus=_split(row["bonus"]),
+        numbers=decode_numbers(row["numbers"]),
+        bonus=decode_numbers(row["bonus"]),
     )
 
 
@@ -94,8 +95,8 @@ def save_draws(lottery: LotteryType, draws: list[Draw], db_path: Path = DB_PATH)
                     lottery.value,
                     draw.round,
                     draw.draw_date.isoformat(),
-                    _join(draw.numbers),
-                    _join(draw.bonus),
+                    encode_numbers(draw.numbers),
+                    encode_numbers(draw.bonus),
                 )
                 for draw in draws
             ],
@@ -128,13 +129,3 @@ def _check_values(lottery: LotteryType, values: list[int]) -> None:
         raise ValueError(f"番号は {rule.min}〜{rule.max} の範囲です")
     if not rule.allow_duplicates and len(set(values)) != len(values):
         raise ValueError("同じ番号が重複しています")
-
-
-def _join(values: list[int]) -> str:
-    """番号の一覧をカンマ区切りの文字列にする"""
-    return ",".join(str(value) for value in values)
-
-
-def _split(text: str) -> list[int]:
-    """カンマ区切りの文字列を番号の一覧にする（空なら空の一覧）"""
-    return [int(value) for value in text.split(",")] if text else []

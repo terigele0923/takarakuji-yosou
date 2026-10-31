@@ -45,7 +45,7 @@
         <p id="result-period" class="period"></p>
 
         <section class="trend-analysis">
-          <h3>過去データとの傾向ランキング</h3>
+          <h3>過去データの偏りに基づく予測ランキング</h3>
           <p id="trend-description" class="hint"></p>
           <div class="table-wrap">
             <table id="trend-matrix" class="odds"></table>
@@ -54,7 +54,7 @@
             <summary>番号の出現回数・ペア分析を見る</summary>
             <p class="hint">
               ペア割合は「行の番号が出た過去回のうち、列の番号も出た割合」です。
-              過去の記録上の割合であり、次回の当選確率を示すものではありません。
+              長期頻度・時間加重した直近頻度・ペア共起を、予測スコアの根拠として使用します。
             </p>
             <div id="frequency-matrices"></div>
             <div id="cooccurrence-matrices"></div>
@@ -63,7 +63,7 @@
 
         <div id="common-odds" hidden>
           <h3>等級ごとの当せん確率</h3>
-          <p class="hint">どの組を選んでも、当せん確率は同じです。</p>
+          <p class="hint">抽せんルールから計算した理論上の等級別確率です。</p>
           <table id="common-odds-table" class="odds"></table>
         </div>
 
@@ -110,9 +110,9 @@
       <p id="agent-error" class="error" hidden></p>
     </section>
 
-    <p class="note">※抽選は毎回ランダムです。予想は過去の集計をもとにした参考情報で、当せんを保証するものではありません。</p>
+    <p class="note">※予想は「過去の偏りの一部が未来にも継続する」という仮説に基づきます。偏りスコアとバックテストは、当せんを保証するものではありません。</p>
   </main>
 
-  <script src="/static/js/app.js?v=20261031-2"></script>
+  <script src="/static/js/app.js?v=20261031-3"></script>
 </body>
 </html>

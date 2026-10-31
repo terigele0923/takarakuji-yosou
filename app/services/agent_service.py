@@ -11,6 +11,7 @@ from app.config import MODEL_NAME
 from app.schemas.lottery import LOTO_TIERS, RULES, LotteryType, PlayType
 from app.services.lottery_data import load_average_prizes, load_draw, load_draws
 from app.services.odds_service import calculate_odds
+from app.services.predict_service import predict
 from app.services.prompt_loader import load_analysis_prompt
 from app.services.purchase_service import expected_return, list_purchases
 from app.services.stats_service import calculate_stats
@@ -21,8 +22,8 @@ SYSTEM_PROMPT = (
     "抽選結果・集計・当せん確率・購入の収支などの数字は、必ず道具（ツール）を使って調べ、"
     "道具の結果だけをもとに答えてください。数字を推測で作ってはいけません。"
     "番号頻度やペアの傾向を質問されたら、全期間の履歴分析ツールを使ってください。"
-    "抽選は毎回ランダムで、過去の結果から当せんの確率を上げる方法はありません。"
-    "当たりやすくなるかのような言い方はしないでください。"
+    "このアプリは、過去の偏りの一部が未来にも継続するという仮説で候補を生成します。"
+    "偏り予測スコア、理論確率、時系列バックテスト実績を区別し、結果を保証しないでください。"
     "金額は円で、日本語で簡潔に答えてください。"
 )
 
@@ -144,6 +145,29 @@ def winning_odds(lottery: LotteryType, numbers: list[int]) -> str:
 
 @tool
 @_db_guard
+def bias_prediction(lottery: LotteryType, count: int = 3) -> str:
+    """長期頻度・時間加重直近頻度・ペア共起の偏りから候補を作り、スコア内訳と時系列バックテストを返す。"""
+    result = predict(lottery, min(max(count, 1), 10))
+    return _to_json({
+        "name": result.name,
+        "next_round": result.next_round,
+        "method": result.prediction_method,
+        "sets": [
+            {
+                "rank": item.rank,
+                "numbers": item.numbers,
+                "bias_score": item.bias_score,
+                "bias_components": item.bias_components,
+                "reason": item.reason,
+            }
+            for item in result.sets
+        ],
+        "backtest": result.backtest.model_dump(),
+    })
+
+
+@tool
+@_db_guard
 def purchase_summary() -> str:
     """利用者がこのアプリで記録した購入の収支の合計と、最近10件の購入を返す。"""
     result = list_purchases()
@@ -184,6 +208,7 @@ TOOLS = [
     number_stats,
     historical_pattern_analysis,
     winning_odds,
+    bias_prediction,
     purchase_summary,
     cost_simulation,
 ]

@@ -1,6 +1,3 @@
-import sqlite3
-
-import openai
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.agent import AgentRequest, AgentResponse
@@ -23,19 +20,10 @@ from app.services import (
 
 router = APIRouter(prefix="/api")
 
-AI_ERROR_MESSAGE = "AIに接続できませんでした。時間をおいて再度お試しください"
-DB_ERROR_MESSAGE = "抽選結果のデータベースが準備されていません"
-
-
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     """質問を受け取り、モデルの返答を返す"""
-    try:
-        answer = chat_service.ask(request.question)
-    except openai.APIError:
-        # キーの誤り・通信の失敗・利用上限などは 503 で返す
-        raise HTTPException(status_code=503, detail=AI_ERROR_MESSAGE)
-    return ChatResponse(answer=answer)
+    return ChatResponse(answer=chat_service.ask(request.question))
 
 
 @router.get("/lotteries", response_model=list[LotteryOption])
@@ -56,8 +44,6 @@ def update_lottery_data():
         raise HTTPException(status_code=422, detail=str(error))
     except lottery_update_service.OfficialSiteError as error:
         raise HTTPException(status_code=502, detail=str(error))
-    except (FileNotFoundError, sqlite3.OperationalError):
-        raise HTTPException(status_code=503, detail=DB_ERROR_MESSAGE)
 
 
 @router.post("/predict", response_model=PredictResponse)
@@ -67,13 +53,6 @@ def predict(request: PredictRequest):
         return predict_service.predict(request.lottery, request.count)
     except predict_service.NoDrawDataError as error:
         raise HTTPException(status_code=409, detail=str(error))
-    except (FileNotFoundError, sqlite3.OperationalError):
-        # DB のファイルや表がまだ作られていない
-        raise HTTPException(status_code=503, detail=DB_ERROR_MESSAGE)
-    except predict_service.InvalidPredictionError as error:
-        raise HTTPException(status_code=502, detail=str(error))
-    except openai.APIError:
-        raise HTTPException(status_code=503, detail=AI_ERROR_MESSAGE)
 
 
 @router.post("/purchases", response_model=PurchaseResponse)
@@ -83,32 +62,21 @@ def purchase(request: PurchaseRequest):
         return purchase_service.save_purchase(request)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
-    except (FileNotFoundError, sqlite3.OperationalError):
-        raise HTTPException(status_code=503, detail=DB_ERROR_MESSAGE)
 
 
 @router.get("/purchases", response_model=PurchaseListResponse)
 def purchases():
     """購入の一覧と、全体の収支を返す"""
-    try:
-        return purchase_service.list_purchases()
-    except (FileNotFoundError, sqlite3.OperationalError):
-        raise HTTPException(status_code=503, detail=DB_ERROR_MESSAGE)
+    return purchase_service.list_purchases()
 
 
 @router.post("/purchases/check", response_model=PurchaseCheckResponse)
 def check_purchases():
     """結果がまだの購入を抽選結果と照らし合わせ、一覧と全体の収支を返す"""
-    try:
-        return purchase_service.check_results()
-    except (FileNotFoundError, sqlite3.OperationalError):
-        raise HTTPException(status_code=503, detail=DB_ERROR_MESSAGE)
+    return purchase_service.check_results()
 
 
 @router.post("/agent", response_model=AgentResponse)
 def agent(request: AgentRequest):
     """AI エージェントに質問し、返答を返す"""
-    try:
-        return AgentResponse(answer=agent_service.ask(request.message, request.thread_id))
-    except openai.APIError:
-        raise HTTPException(status_code=503, detail=AI_ERROR_MESSAGE)
+    return AgentResponse(answer=agent_service.ask(request.message, request.thread_id))

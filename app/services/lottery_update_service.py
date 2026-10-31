@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.config import DB_PATH
-from scripts.import_mizuho_data import (
+from app.services.mizuho_import_service import (
     ParsedDraw,
     apply_records,
     compare_database,
