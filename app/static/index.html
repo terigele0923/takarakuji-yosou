@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>宝くじ予想AI</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>宝くじ予想AI</h1>
+
+    <nav class="tabs">
+      <button type="button" class="tab active" data-tab="predict-tab">予想</button>
+      <button type="button" class="tab" data-tab="purchases-tab">収支</button>
+      <button type="button" class="tab" data-tab="agent-tab">相談</button>
+    </nav>
+
+    <!-- 予想タブ -->
+    <section id="predict-tab" class="tab-panel">
+      <form id="predict-form">
+        <div class="fields">
+          <div class="field">
+            <label for="lottery">宝くじの種類</label>
+            <select id="lottery"></select>
+          </div>
+          <div class="field field-small">
+            <label for="count">組数</label>
+            <select id="count"></select>
+          </div>
+        </div>
+        <button type="submit" id="predict-button">予想する</button>
+      </form>
+
+      <p id="error" class="error" hidden></p>
+
+      <section id="result" class="result" hidden>
+        <h2 id="result-title"></h2>
+        <p id="result-period" class="period"></p>
+
+        <div id="common-odds" hidden>
+          <h3>等級ごとの当せん確率</h3>
+          <p class="hint">どの組を選んでも、当せん確率は同じです。</p>
+          <table id="common-odds-table" class="odds"></table>
+        </div>
+
+        <ol id="result-sets" class="sets"></ol>
+      </section>
+    </section>
+
+    <!-- 収支タブ -->
+    <section id="purchases-tab" class="tab-panel" hidden>
+      <button type="button" id="check-button">結果を確認</button>
+      <p class="hint">抽選結果が DB に入った回の購入を照らし合わせて、当たり外れと賞金を記録します。</p>
+
+      <p id="purchases-error" class="error" hidden></p>
+
+      <div class="summary">
+        <div class="summary-item"><span>使った金額</span><strong id="summary-spent">-</strong></div>
+        <div class="summary-item"><span>当たった金額</span><strong id="summary-won">-</strong></div>
+        <div class="summary-item"><span>収支</span><strong id="summary-profit">-</strong></div>
+        <div class="summary-item"><span>期待される戻り</span><strong id="summary-expected">-</strong></div>
+      </div>
+      <p id="summary-note" class="hint"></p>
+
+      <div class="table-wrap">
+        <table id="purchases-table" class="purchases"></table>
+      </div>
+      <p id="purchases-empty" class="hint" hidden>まだ購入の記録がありません。予想タブの「購入した」で記録できます。</p>
+    </section>
+
+    <!-- 相談タブ -->
+    <section id="agent-tab" class="tab-panel" hidden>
+      <p class="hint">
+        抽選結果・集計・当せん確率・収支について質問できます。AI が必要な情報を自分で調べて答えます。<br>
+        例：「ロト6の最近5回の結果は？」「ロト7を毎週2口、1年買ったら収支はどうなりそう？」「私の収支は？」
+      </p>
+      <ol id="agent-log" class="agent-log"></ol>
+      <form id="agent-form">
+        <textarea id="agent-message" rows="3" maxlength="1000" placeholder="質問を入力してください"></textarea>
+        <div class="agent-buttons">
+          <button type="submit" id="agent-button">送信</button>
+          <button type="button" id="agent-reset" class="secondary">新しい会話</button>
+        </div>
+      </form>
+      <p id="agent-error" class="error" hidden></p>
+    </section>
+
+    <p class="note">※抽選は毎回ランダムです。予想は過去の集計をもとにした参考情報で、当せんを保証するものではありません。</p>
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

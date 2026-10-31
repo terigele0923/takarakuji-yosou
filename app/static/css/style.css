@@ -1,0 +1,357 @@
+/* 画面全体の文字と背景 */
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+  background: #f5f6f8;
+  color: #222;
+}
+
+/* 中央寄せの白いカード */
+.container {
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 24px 28px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 1.6rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+button {
+  margin-top: 12px;
+  padding: 10px 24px;
+  font: inherit;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #93a8d8;
+  cursor: wait;
+}
+
+/* エラーの表示 */
+.error {
+  margin-top: 16px;
+  padding: 10px 12px;
+  color: #a61b1b;
+  background: #fdecec;
+  border-radius: 8px;
+}
+
+/* 予想の結果の表示 */
+.result {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f0f4ff;
+  border-radius: 8px;
+}
+
+.result h2 {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+}
+
+/* 予想した番号を丸い玉で並べる */
+.numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.numbers li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #fff;
+  background: #2563eb;
+  border-radius: 50%;
+}
+
+/* 理由の表示（改行をそのまま表示する） */
+.reason {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+.period {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* 種類と組数の入力欄を横に並べる */
+.fields {
+  display: flex;
+  gap: 12px;
+}
+
+.field {
+  flex: 1;
+}
+
+.field-small {
+  flex: 0 0 120px;
+}
+
+.result h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.hint {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+/* 当せん確率の表 */
+.odds {
+  margin: 0 0 16px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.odds th,
+.odds td {
+  padding: 4px 12px;
+  text-align: left;
+  border: 1px solid #d5dbe8;
+}
+
+.odds th {
+  background: #e4eaf7;
+}
+
+/* 予想した番号の組 */
+.sets {
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+.set {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* 購入の記録 */
+.purchase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.purchase select {
+  width: auto;
+}
+
+.purchase-button {
+  margin-top: 0;
+  padding: 6px 16px;
+  background: #16a34a;
+}
+
+.purchase-button:disabled {
+  background: #9ccfae;
+  cursor: default;
+}
+
+.purchase-message {
+  font-size: 0.85rem;
+  color: #166534;
+}
+
+.purchase-message.purchase-error {
+  color: #a61b1b;
+}
+
+/* 注意書き */
+.note {
+  margin: 20px 0 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* タブ */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e4eaf7;
+}
+
+.tab {
+  margin: 0;
+  padding: 8px 20px;
+  color: #2563eb;
+  background: transparent;
+  border-radius: 8px 8px 0 0;
+}
+
+.tab.active {
+  color: #fff;
+  background: #2563eb;
+}
+
+/* 灰色のボタン */
+button.secondary {
+  color: #333;
+  background: #e5e7eb;
+}
+
+/* 収支の合計 */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+
+.summary-item {
+  padding: 12px;
+  background: #f0f4ff;
+  border-radius: 8px;
+}
+
+.summary-item span {
+  display: block;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.summary-item strong {
+  font-size: 1.2rem;
+}
+
+.summary-item .minus {
+  color: #a61b1b;
+}
+
+.summary-item .plus {
+  color: #166534;
+}
+
+/* 購入の一覧（狭い画面では横に動かせる） */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.purchases {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.purchases th,
+.purchases td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #e4eaf7;
+}
+
+.purchases th {
+  background: #e4eaf7;
+}
+
+.status-won {
+  font-weight: bold;
+  color: #166534;
+}
+
+.status-lost {
+  color: #888;
+}
+
+.status-prize_unknown {
+  color: #b45309;
+}
+
+/* 相談の会話 */
+.agent-log {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-message {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  border-radius: 8px;
+}
+
+.agent-user {
+  margin-left: 15%;
+  background: #e4eaf7;
+}
+
+.agent-assistant {
+  margin-right: 15%;
+  background: #f5f6f8;
+}
+
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.agent-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* スマートフォンでは余白を狭くする */
+@media (max-width: 760px) {
+  .container {
+    margin: 16px;
+    padding: 20px 16px;
+  }
+
+  .numbers li {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+}
