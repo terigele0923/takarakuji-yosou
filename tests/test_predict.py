@@ -62,16 +62,37 @@ def test_ロト6を2組予想すると小さい順の番号と確率が返る(lo
     assert result.last_round == 2
 
 
+def test_予想のたびに分析プロンプトファイルを読み込んでAIへ渡す(loto6_data, mock_llm):
+    _, invoke = mock_llm
+    invoke.return_value = output([1, 5, 12, 19, 30, 41])
+
+    with patch("app.services.predict_service.load_analysis_prompt", return_value="履歴分析ガイド") as load_prompt:
+        predict_service.predict(LotteryType.LOTO6)
+
+    load_prompt.assert_called_once_with()
+    system_message = invoke.call_args.args[0][0]
+    assert system_message == (
+        "system",
+        f"{predict_service.SYSTEM_PROMPT}\n\n履歴分析ガイド",
+    )
+    human_message = invoke.call_args.args[0][1][1]
+    assert "DBに保存されている全期間の履歴分析" in human_message
+    assert "同時出現回数" in human_message
+
+
 def test_ナンバーズは桁の順のまま返し組ごとの確率が付く(mock_llm):
     _, invoke = mock_llm
-    invoke.side_effect = [output([9, 0, 0], [1, 2, 3])]
+    invoke.side_effect = [output([9, 0, 0], [0, 8, 9])]
     with patch("app.services.predict_service.load_draws", return_value=NUMBERS3_DRAWS):
         result = predict_service.predict(LotteryType.NUMBERS3, 2)
-    assert [item.numbers for item in result.sets] == [[9, 0, 0], [1, 2, 3]]
+    assert [item.numbers for item in result.sets] == [[0, 8, 9], [9, 0, 0]]
     box = {odds.tier: odds for odds in result.sets[0].odds}["ボックス"]
-    assert box.probability == pytest.approx(3 / 1_000)
-    box = {odds.tier: odds for odds in result.sets[1].odds}["ボックス"]
     assert box.probability == pytest.approx(6 / 1_000)
+    box = {odds.tier: odds for odds in result.sets[1].odds}["ボックス"]
+    assert box.probability == pytest.approx(3 / 1_000)
+    assert [item.rank for item in result.sets] == [1, 2]
+    assert result.sets[0].trend_score > result.sets[1].trend_score
+    assert result.sets[0].match_distribution == [0, 0, 1, 0]
 
 
 @pytest.mark.parametrize(

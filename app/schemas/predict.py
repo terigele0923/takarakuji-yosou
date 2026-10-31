@@ -27,6 +27,32 @@ class PredictedSet(BaseModel):
     numbers: list[int]       # 番号（ロト系は小さい順、ナンバーズは左の桁から）
     reason: str              # 選んだ理由
     odds: list[TierOdds]     # 申込タイプ・等級ごとの当せん確率
+    rank: int                # 過去データとの類似度順位
+    trend_score: float        # 過去データとの類似度（当せん確率ではない）
+    average_distance: float   # 過去の全抽せん結果との平均距離
+    closest_round: int        # 距離が最小だった過去の回
+    closest_distance: float   # 過去の結果との最小距離
+    match_distribution: list[int]  # 0一致〜全一致の回数
+
+
+class FrequencyMatrix(BaseModel):
+    """番号または桁位置ごとの出現回数"""
+
+    title: str
+    labels: list[str]
+    counts: list[int]
+    total_draws: int
+
+
+class CooccurrenceMatrix(BaseModel):
+    """番号ペアまたは桁位置ペアの同時出現回数と条件付き割合"""
+
+    title: str
+    row_labels: list[str]
+    column_labels: list[str]
+    counts: list[list[int]]
+    probabilities: list[list[float]]
+    row_draw_counts: list[int]
 
 
 class PredictResponse(BaseModel):
@@ -39,6 +65,12 @@ class PredictResponse(BaseModel):
     first_date: datetime.date    # 集計した最初の抽選日
     last_date: datetime.date     # 集計した最後の抽選日
     last_round: int              # 集計した最後の回
+    trend_metric: str            # 距離の種類
+    trend_draw_count: int        # 傾向分析に使った全抽せん回数
+    trend_first_date: datetime.date
+    trend_last_date: datetime.date
+    frequency_matrices: list[FrequencyMatrix]
+    cooccurrence_matrices: list[CooccurrenceMatrix]
 
 
 class AiPredictedSet(BaseModel):

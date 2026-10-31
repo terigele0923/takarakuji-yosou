@@ -136,6 +136,35 @@ button:disabled {
   color: #555;
 }
 
+.trend-analysis {
+  margin: 16px 0;
+}
+
+.trend-analysis h3,
+.trend-analysis h4 {
+  margin: 12px 0 6px;
+}
+
+.trend-analysis details {
+  margin: 12px 0 16px;
+}
+
+.trend-analysis summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.trend-analysis .table-wrap {
+  margin: 8px 0 16px;
+}
+
+.trend-analysis .odds th,
+.trend-analysis .odds td {
+  white-space: nowrap;
+  text-align: center;
+  padding: 5px 8px;
+}
+
 /* 当せん確率の表 */
 .odds {
   margin: 0 0 16px;
