@@ -263,6 +263,24 @@ button.secondary {
   background: #e5e7eb;
 }
 
+.data-update {
+  margin-bottom: 20px;
+}
+
+.data-update button {
+  margin-top: 0;
+}
+
+/* 更新・結果確認の完了内容を見落とさないように表示する */
+.action-status {
+  margin: 10px 0 8px;
+  padding: 10px 12px;
+  color: #174a2b;
+  background: #e8f7ed;
+  border: 1px solid #9bd3ac;
+  border-radius: 8px;
+}
+
 /* 収支の合計 */
 .summary {
   display: grid;

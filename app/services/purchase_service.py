@@ -4,8 +4,9 @@ from pathlib import Path
 
 from app.config import DB_PATH
 from app.db import connect
-from app.schemas.lottery import RULES, LotteryType, PlayType
+from app.schemas.lottery import RULES, Draw, LotteryType, PlayType
 from app.schemas.purchase import (
+    PurchaseCheckResponse,
     PurchaseListResponse,
     PurchaseRecord,
     PurchaseRequest,
@@ -14,12 +15,7 @@ from app.schemas.purchase import (
     PurchaseSummary,
 )
 from app.services.judge_service import judge
-from app.services.lottery_data import (
-    load_average_prizes,
-    load_draw,
-    load_prize,
-    validate_numbers,
-)
+from app.services.lottery_data import load_average_prizes, load_prize, validate_numbers
 from app.services.odds_service import available_play_types, calculate_odds
 
 
@@ -65,33 +61,56 @@ def save_purchase(request: PurchaseRequest, db_path: Path = DB_PATH) -> Purchase
     )
 
 
-def check_results(db_path: Path = DB_PATH) -> PurchaseListResponse:
+def check_results(db_path: Path = DB_PATH) -> PurchaseCheckResponse:
     """結果がまだの購入を、抽選結果と照らし合わせて等級と賞金を記録し、一覧を返す"""
     with closing(connect(db_path)) as conn:
-        rows = conn.execute("SELECT * FROM purchases WHERE prize IS NULL").fetchall()
+        rows = conn.execute(
+            "SELECT p.*, d.draw_date, d.numbers AS draw_numbers, d.bonus AS draw_bonus "
+            "FROM purchases AS p "
+            "LEFT JOIN draws AS d ON d.lottery = p.lottery AND d.round = p.round "
+            "WHERE p.prize IS NULL"
+        ).fetchall()
 
     updates = []
     for row in rows:
         lottery = LotteryType(row["lottery"])
-        draw = load_draw(lottery, row["round"], db_path)
-        if draw is None:
+        if row["draw_date"] is None:
             continue
+        draw = Draw(
+            round=row["round"],
+            draw_date=row["draw_date"],
+            numbers=_split(row["draw_numbers"]),
+            bonus=_split(row["draw_bonus"]),
+        )
         tier = judge(lottery, PlayType(row["play_type"]), _split(row["numbers"]), draw)
         if tier is None:
-            updates.append((None, 0, row["id"]))
+            new_tier, new_prize = None, 0
         else:
             # 賞金がまだ DB になければ、等級だけ記録して金額は空のままにする
-            updates.append((tier, load_prize(lottery, row["round"], tier, db_path), row["id"]))
+            new_tier = tier
+            new_prize = load_prize(lottery, row["round"], tier, db_path)
+        if (row["tier"], row["prize"]) != (new_tier, new_prize):
+            updates.append((new_tier, new_prize, row["id"]))
 
     with closing(connect(db_path)) as conn, conn:
         conn.executemany("UPDATE purchases SET tier = ?, prize = ? WHERE id = ?", updates)
-    return list_purchases(db_path)
+    result = list_purchases(db_path)
+    return PurchaseCheckResponse(
+        purchases=result.purchases,
+        summary=result.summary,
+        checked_count=len(updates),
+    )
 
 
 def list_purchases(db_path: Path = DB_PATH) -> PurchaseListResponse:
     """購入の一覧（新しい順）と、全体の収支を返す"""
     with closing(connect(db_path)) as conn:
-        rows = conn.execute("SELECT * FROM purchases ORDER BY id DESC").fetchall()
+        rows = conn.execute(
+            "SELECT p.*, d.numbers AS draw_numbers, d.bonus AS draw_bonus "
+            "FROM purchases AS p "
+            "LEFT JOIN draws AS d ON d.lottery = p.lottery AND d.round = p.round "
+            "ORDER BY p.id DESC"
+        ).fetchall()
 
     averages: dict[LotteryType, dict[str, float]] = {}
     records = []
@@ -126,6 +145,8 @@ def _to_record(row, average_prizes: dict[str, float]) -> PurchaseRecord:
     lottery = LotteryType(row["lottery"])
     play_type = PlayType(row["play_type"])
     numbers = _split(row["numbers"])
+    winning_numbers = _split(row["draw_numbers"]) if row["draw_numbers"] is not None else None
+    bonus_numbers = _split(row["draw_bonus"]) if row["draw_bonus"] is not None else None
     return PurchaseRecord(
         id=row["id"],
         lottery=lottery,
@@ -138,6 +159,8 @@ def _to_record(row, average_prizes: dict[str, float]) -> PurchaseRecord:
         status=_status(row["tier"], row["prize"]),
         tier=row["tier"],
         prize=row["prize"],
+        winning_numbers=winning_numbers,
+        bonus_numbers=bonus_numbers,
         expected_return=expected_return(lottery, play_type, numbers, average_prizes),
     )
 
