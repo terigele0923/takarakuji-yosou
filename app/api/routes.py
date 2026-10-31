@@ -5,10 +5,21 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.agent import AgentRequest, AgentResponse
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.schemas.lottery import RULES, LotteryType
+from app.schemas.lottery import RULES, LotteryType, LotteryUpdateResponse
 from app.schemas.predict import LotteryOption, PredictRequest, PredictResponse
-from app.schemas.purchase import PurchaseListResponse, PurchaseRequest, PurchaseResponse
-from app.services import agent_service, chat_service, predict_service, purchase_service
+from app.schemas.purchase import (
+    PurchaseCheckResponse,
+    PurchaseListResponse,
+    PurchaseRequest,
+    PurchaseResponse,
+)
+from app.services import (
+    agent_service,
+    chat_service,
+    lottery_update_service,
+    predict_service,
+    purchase_service,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -31,6 +42,22 @@ def chat(request: ChatRequest):
 def lotteries():
     """画面の選択肢に出す宝くじの種類の一覧を返す"""
     return [LotteryOption(value=lottery, name=RULES[lottery].name) for lottery in LotteryType]
+
+
+@router.post("/lottery-data/update", response_model=LotteryUpdateResponse)
+def update_lottery_data():
+    """公式サイトの最新結果を確認し、DBにない抽せん結果と賞金を追加する"""
+    try:
+        added_draws, added_prizes = lottery_update_service.update_latest_draws()
+        return LotteryUpdateResponse(added_draws=added_draws, added_prizes=added_prizes)
+    except lottery_update_service.LotteryDataConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    except lottery_update_service.OfficialSiteError as error:
+        raise HTTPException(status_code=502, detail=str(error))
+    except (FileNotFoundError, sqlite3.OperationalError):
+        raise HTTPException(status_code=503, detail=DB_ERROR_MESSAGE)
 
 
 @router.post("/predict", response_model=PredictResponse)
@@ -69,7 +96,7 @@ def purchases():
         raise HTTPException(status_code=503, detail=DB_ERROR_MESSAGE)
 
 
-@router.post("/purchases/check", response_model=PurchaseListResponse)
+@router.post("/purchases/check", response_model=PurchaseCheckResponse)
 def check_purchases():
     """結果がまだの購入を抽選結果と照らし合わせ、一覧と全体の収支を返す"""
     try:

@@ -170,7 +170,10 @@ def test_結果がまだの回は未確認のまま(db_path):
     result = check_results(db_path)
     assert result.purchases[0].status == "pending"
     assert result.purchases[0].prize is None
+    assert result.purchases[0].winning_numbers is None
+    assert result.purchases[0].bonus_numbers is None
     assert result.summary.pending_count == 1
+    assert result.checked_count == 0
 
 
 def test_当たりと外れを記録して収支を計算する(db_path):
@@ -183,6 +186,8 @@ def test_当たりと外れを記録して収支を計算する(db_path):
     by_id = {record.id: record for record in result.purchases}
     assert [record.id for record in result.purchases] == [3, 2, 1]
     assert (by_id[1].status, by_id[1].tier, by_id[1].prize) == ("won", "5等", 1_000)
+    assert by_id[1].winning_numbers == [1, 5, 12, 19, 30, 41]
+    assert by_id[1].bonus_numbers == [22]
     assert (by_id[2].status, by_id[2].tier, by_id[2].prize) == ("lost", None, 0)
     assert (by_id[3].status, by_id[3].prize) == ("pending", None)
 
@@ -192,6 +197,7 @@ def test_当たりと外れを記録して収支を計算する(db_path):
     assert summary.won == 1_000
     assert summary.profit == 400
     assert summary.pending_count == 1
+    assert result.checked_count == 2
 
     rows = {row["id"]: row for row in saved_rows(db_path)}
     assert (rows[1]["tier"], rows[1]["prize"]) == ("5等", 1_000)
@@ -267,6 +273,14 @@ def test_収支のAPI(db_path):
     assert response.status_code == 200
     assert response.json()["purchases"][0]["status"] == "won"
     assert response.json()["summary"]["profit"] == 800
+    assert response.json()["checked_count"] == 1
+
+
+def test_結果確認を繰り返した場合は新しい情報0件を返す(db_path):
+    add_loto6_result(db_path)
+    save_purchase(request(LotteryType.LOTO6, [1, 5, 12, 2, 3, 4], PlayType.NORMAL), db_path)
+    assert check_results(db_path).checked_count == 1
+    assert check_results(db_path).checked_count == 0
 
 
 def test_収支のAPIで表がなければ503(tmp_path):

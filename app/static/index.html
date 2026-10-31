@@ -18,6 +18,12 @@
 
     <!-- 予想タブ -->
     <section id="predict-tab" class="tab-panel">
+      <section class="data-update">
+        <button type="button" id="update-data-button" class="secondary">最新情報を更新</button>
+        <p id="update-data-status" class="action-status" hidden></p>
+        <p id="update-data-error" class="error" hidden></p>
+      </section>
+
       <form id="predict-form">
         <div class="fields">
           <div class="field">
@@ -68,6 +74,7 @@
     <!-- 収支タブ -->
     <section id="purchases-tab" class="tab-panel" hidden>
       <button type="button" id="check-button">結果を確認</button>
+      <p id="check-status" class="action-status" hidden></p>
       <p class="hint">抽選結果が DB に入った回の購入を照らし合わせて、当たり外れと賞金を記録します。</p>
 
       <p id="purchases-error" class="error" hidden></p>
@@ -106,6 +113,6 @@
     <p class="note">※抽選は毎回ランダムです。予想は過去の集計をもとにした参考情報で、当せんを保証するものではありません。</p>
   </main>
 
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=20261031-2"></script>
 </body>
 </html>

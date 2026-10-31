@@ -22,13 +22,14 @@ def candidate_trend(
     rule = RULES[lottery]
     distribution = [0] * (rule.count + 1)
     distances: list[tuple[int, float]] = []
+    candidate_numbers = set(numbers)
 
     for draw in draws:
         if rule.by_position:
             matches = sum(left == right for left, right in zip(numbers, draw.numbers))
             distance = 1 - matches / rule.count
         else:
-            matches = len(set(numbers) & set(draw.numbers))
+            matches = len(candidate_numbers & set(draw.numbers))
             union_size = 2 * rule.count - matches
             distance = 1 - matches / union_size
         distribution[matches] += 1
@@ -61,52 +62,50 @@ def build_history_matrices(
     cooccurrences: list[CooccurrenceMatrix] = []
 
     if rule.by_position:
+        position_counts = [[0] * len(numbers) for _ in range(rule.count)]
+        position_pair_counts = {
+            (first, second): [[0] * len(numbers) for _ in numbers]
+            for first in range(rule.count)
+            for second in range(first + 1, rule.count)
+        }
+        for draw in draws:
+            indexes = [number - rule.min for number in draw.numbers]
+            for position, number_index in enumerate(indexes):
+                position_counts[position][number_index] += 1
+            for (first, second), matrix in position_pair_counts.items():
+                matrix[indexes[first]][indexes[second]] += 1
+
         for first_position in range(rule.count):
-            position_counts = [
-                sum(draw.numbers[first_position] == number for draw in draws)
-                for number in numbers
-            ]
             frequencies.append(
                 FrequencyMatrix(
                     title=f"左から{first_position + 1}桁目の出現回数",
                     labels=[str(number) for number in numbers],
-                    counts=position_counts,
+                    counts=position_counts[first_position],
                     total_draws=len(draws),
                 )
             )
 
         for first_position in range(rule.count):
             for second_position in range(first_position + 1, rule.count):
-                row_counts = [
-                    sum(draw.numbers[first_position] == number for draw in draws)
-                    for number in numbers
-                ]
-                counts = [
-                    [
-                        sum(
-                            draw.numbers[first_position] == first
-                            and draw.numbers[second_position] == second
-                            for draw in draws
-                        )
-                        for second in numbers
-                    ]
-                    for first in numbers
-                ]
                 cooccurrences.append(
                     _cooccurrence_matrix(
                         f"左から{first_position + 1}桁目 × 左から{second_position + 1}桁目",
                         numbers,
                         numbers,
-                        counts,
-                        row_counts,
+                        position_pair_counts[(first_position, second_position)],
+                        position_counts[first_position],
                     )
                 )
         return frequencies, cooccurrences
 
-    counts = [
-        sum(number in draw.numbers for draw in draws)
-        for number in numbers
-    ]
+    counts = [0] * len(numbers)
+    pair_counts = [[0] * len(numbers) for _ in numbers]
+    for draw in draws:
+        indexes = [number - rule.min for number in draw.numbers]
+        for first_index in indexes:
+            counts[first_index] += 1
+            for second_index in indexes:
+                pair_counts[first_index][second_index] += 1
     frequencies.append(
         FrequencyMatrix(
             title="本数字の出現回数",
@@ -115,13 +114,6 @@ def build_history_matrices(
             total_draws=len(draws),
         )
     )
-    pair_counts = [
-        [
-            sum(first in draw.numbers and second in draw.numbers for draw in draws)
-            for second in numbers
-        ]
-        for first in numbers
-    ]
     cooccurrences.append(
         _cooccurrence_matrix(
             "本数字ペアの同時出現割合（行の番号が出た回のうち、列の番号も出た割合）",
