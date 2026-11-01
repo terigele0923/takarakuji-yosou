@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("help", "setup", "test", "lint", "format", "migrate", "evaluate", "learn-model", "advanced-learn", "walk-forward", "import-walk-forward", "verify", "run")]
+    [ValidateSet("help", "setup", "test", "lint", "format", "migrate", "evaluate", "learn-model", "advanced-learn", "walk-forward", "import-walk-forward", "clear-test-purchases", "cleanup-db", "verify", "run")]
     [string]$Command = "help",
     [switch]$SkipBrowser,
     [int]$Months = 2,
@@ -125,6 +125,14 @@ switch ($Command) {
             Invoke-Python scripts\import_walk_forward_results.py $Report --numbers3-tickets $Numbers3Tickets
         }
     }
+    "clear-test-purchases" {
+        Invoke-Python -m alembic upgrade head
+        Invoke-Python scripts\clear_test_purchases.py
+    }
+    "cleanup-db" {
+        Invoke-Python -m alembic upgrade head
+        Invoke-Python scripts\cleanup_db_versions.py
+    }
     "verify" {
         Invoke-Lint
         Invoke-MigrationVerification
@@ -146,6 +154,8 @@ switch ($Command) {
         Write-Host "  advanced-learn Repeat loss feedback learning and verify on untouched data"
         Write-Host "  walk-forward Simulate predictions against the latest held-out draws"
         Write-Host "  import-walk-forward Add a report's predictions to the purchase ledger"
+        Write-Host "  clear-test-purchases Remove simulated purchases but keep normal purchases"
+        Write-Host "  cleanup-db Keep one verified backup and remove obsolete generated DBs"
         Write-Host "  verify   Run lint, migration verification, tests, and compilation"
         Write-Host "  run      Migrate and start the local server"
     }

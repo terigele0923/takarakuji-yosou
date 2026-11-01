@@ -4,6 +4,7 @@ import sqlite3
 
 from app.db_migrations import upgrade_database
 from app.services.walk_forward_purchase_import_service import (
+    clear_walk_forward_purchases,
     import_walk_forward_report,
 )
 
@@ -77,3 +78,22 @@ def test_評価レポートを収支へ一度だけ反映して当選判定す�
     assert replaced.summary.count == 5
     assert replaced.summary.spent == 1_000
     assert replaced.summary.won == 50_000
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO purchases (
+                lottery, round, numbers, play_type, price, purchased_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("loto6", 2, "1,2,3,4,5,6", "normal", 200, "2026-01-01T00:00:00"),
+        )
+
+    cleared = clear_walk_forward_purchases(database_path)
+
+    assert cleared.removed == 5
+    assert cleared.backup_path is not None and cleared.backup_path.exists()
+    assert cleared.summary.count == 1
+    assert cleared.summary.spent == 200
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM purchase_imports").fetchone()[0] == 0

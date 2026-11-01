@@ -22,6 +22,13 @@ class WalkForwardImportResult:
     summary: PurchaseSummary
 
 
+@dataclass(frozen=True)
+class ClearWalkForwardResult:
+    removed: int
+    backup_path: Path | None
+    summary: PurchaseSummary
+
+
 def import_walk_forward_report(
     report_path: Path,
     db_path: Path = DB_PATH,
@@ -93,6 +100,38 @@ def import_walk_forward_report(
         checked=checked.checked_count,
         backup_path=backup_path,
         summary=checked.summary,
+    )
+
+
+def clear_walk_forward_purchases(
+    db_path: Path = DB_PATH,
+) -> ClearWalkForwardResult:
+    """テストレポート由来の購入だけを削除し、通常購入は保持する。"""
+    with sqlite3.connect(db_path) as connection:
+        purchase_ids = [
+            row[0]
+            for row in connection.execute(
+                "SELECT purchase_id FROM purchase_imports ORDER BY purchase_id"
+            )
+        ]
+    if not purchase_ids:
+        return ClearWalkForwardResult(
+            removed=0,
+            backup_path=None,
+            summary=list_purchases(db_path).summary,
+        )
+
+    backup_path = _backup_database(db_path)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("DELETE FROM purchase_imports")
+        connection.executemany(
+            "DELETE FROM purchases WHERE id = ?",
+            [(purchase_id,) for purchase_id in purchase_ids],
+        )
+    return ClearWalkForwardResult(
+        removed=len(purchase_ids),
+        backup_path=backup_path,
+        summary=list_purchases(db_path).summary,
     )
 
 
