@@ -76,26 +76,23 @@ VS Code の「ファイル」→「フォルダーを開く」で `C:\Langchain_
 
 確認：ターミナルの行の先頭が `PS C:\Langchain_sample>` になっていればよい。
 
-### B-4. 仮想環境を作る
+### B-4. 開発環境を準備する
 
-念のため古い `.venv` を消してから作り直す（ない場合も、エラーにならずに進む）。
-
-```powershell
-Remove-Item -Recurse -Force .venv -ErrorAction SilentlyContinue
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-確認：ターミナルの行の先頭が `(.venv) PS C:\Langchain_sample>` になればよい。
-
-### B-5. 必要なパッケージを入れる
+仮想環境、Pythonパッケージ、ブラウザーを共通コマンドで準備する。
 
 ```powershell
-.venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m playwright install chromium
+.\scripts\dev.ps1 setup
 ```
 
-確認：依存パッケージとChromiumのインストールがエラーなく終了すればよい（数分かかることがある）。
+確認：依存パッケージとChromiumのインストールがエラーなく終了すればよい。
+
+### B-5. DBを最新構造にする
+
+```powershell
+.\scripts\dev.ps1 migrate
+```
+
+確認：エラーなく終了すればよい。既存データは保持され、未適用の変更だけが順番に適用される。
 
 ### B-6. VS Code に仮想環境を使わせる
 
@@ -105,7 +102,7 @@ python -m venv .venv
 ### B-7. テストで確かめる
 
 ```powershell
-.venv\Scripts\python -m pytest tests -q
+.\scripts\dev.ps1 verify
 ```
 
 確認：最後に `passed` と表示され、`failed` がなければよい。
@@ -122,10 +119,10 @@ Select-String -Path .env -Pattern '^OPENAI_API_KEY=.+' -Quiet
 
 確認：`True` と表示されればよい。`False` なら `.env` を開き、`OPENAI_API_KEY=` のあとに API キーを書く。
 
-DB に必要な表（抽選結果・賞金・購入の記録）があることを確認する。
+DB に必要な表（抽選結果・賞金・購入の記録）があることを確認する。表の作成・更新はAlembicが行う。
 
 ```powershell
-.venv\Scripts\python -c "import sqlite3; sqlite3.connect('data/lottery.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
+.\scripts\dev.ps1 migrate
 ```
 
 確認：
@@ -141,7 +138,7 @@ DB に必要な表（抽選結果・賞金・購入の記録）があること�
 プロジェクト専用のPythonから起動スクリプトを実行する。`uvicorn.exe` はWindowsセキュリティにブロックされる場合があるため直接実行しない。
 
 ```powershell
-.venv\Scripts\python scripts\run_server.py
+.\scripts\dev.ps1 run
 ```
 
 確認：`Uvicorn running on http://127.0.0.1:8000` と `Application startup complete.` が表示されればよい。
@@ -166,7 +163,7 @@ DB に必要な表（抽選結果・賞金・購入の記録）があること�
 VS Code で `C:\Langchain_sample` を開き、新しいターミナルで実行する。
 
 ```powershell
-.venv\Scripts\python scripts\run_server.py
+.\scripts\dev.ps1 run
 ```
 
 別のDBを使う場合の `$env:LOTTERY_DB_PATH` は、そのターミナルの中だけで有効。ターミナルを開き直したら、もう一度設定する。
@@ -188,11 +185,10 @@ VS Code で `C:\Langchain_sample` を開き、新しいターミナルで実行�
 | 画面で「AIに接続できませんでした」 | API キーが正しいか、インターネットにつながっているか、OpenAI の利用残高があるかを確かめる |
 | Mac で動かす | `.venv\Scripts\` を `.venv/bin/` に、`.venv\Scripts\Activate.ps1` を `source .venv/bin/activate` に、`$env:LOTTERY_DB_PATH = "data/sample.db"` を `export LOTTERY_DB_PATH=data/sample.db` に読み替える |
 
-### DB の表を作り直す
+### DB の表を更新する
 
 ```powershell
-# 表を作る（表がもうあれば table draws already exists と出るが、問題ない）
-.venv\Scripts\python -c "import sqlite3; sqlite3.connect('data/lottery.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
+.\scripts\dev.ps1 migrate
 ```
 
 公式履歴の登録は `LOTTERY_DATA_IMPORT.md` を参照する。

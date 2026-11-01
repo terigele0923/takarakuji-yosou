@@ -9,9 +9,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import uvicorn
 
-from app.main import app
+from app.db_migrations import upgrade_database
 
 if __name__ == "__main__":
+    upgrade_database()
+
+    from app.main import app
+
     uvicorn.run(
         app,
         host="127.0.0.1",

@@ -6,3 +6,4 @@ uvicorn==0.54.0
 pytest==9.2.0
 httpx==0.28.1
 playwright==1.55.0
+alembic==1.20.1
