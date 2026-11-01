@@ -10,6 +10,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from app.config import MODEL_NAME
 from app.schemas.lottery import LOTO_TIERS, RULES, LotteryType, PlayType
 from app.services.lottery_data import load_average_prizes, load_draw, load_draws
+from app.services.model_profile_service import load_model_profile
 from app.services.odds_service import calculate_odds
 from app.services.predict_service import predict
 from app.services.prompt_loader import load_analysis_prompt
@@ -147,7 +148,13 @@ def winning_odds(lottery: LotteryType, numbers: list[int]) -> str:
 @_db_guard
 def bias_prediction(lottery: LotteryType, count: int = 3) -> str:
     """長期頻度・時間加重直近頻度・ペア共起の偏りから候補を作り、スコア内訳と時系列バックテストを返す。"""
-    result = predict(lottery, min(max(count, 1), 10))
+    profile = load_model_profile(lottery)
+    result = predict(
+        lottery,
+        min(max(count, 1), 10),
+        profile.config,
+        profile.model_version,
+    )
     return _to_json({
         "name": result.name,
         "next_round": result.next_round,

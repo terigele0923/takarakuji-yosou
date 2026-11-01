@@ -1,7 +1,15 @@
 param(
-    [ValidateSet("help", "setup", "test", "lint", "format", "migrate", "evaluate", "verify", "run")]
+    [ValidateSet("help", "setup", "test", "lint", "format", "migrate", "evaluate", "learn-model", "advanced-learn", "walk-forward", "import-walk-forward", "verify", "run")]
     [string]$Command = "help",
-    [switch]$SkipBrowser
+    [switch]$SkipBrowser,
+    [int]$Months = 2,
+    [int]$Count = 1,
+    [int]$RandomSamples = 200,
+    [string]$Report,
+    [int]$Numbers3Tickets = 5,
+    [string]$Lottery,
+    [switch]$ReplaceExisting,
+    [int]$Loops = 5
 )
 
 $ErrorActionPreference = "Stop"
@@ -89,6 +97,34 @@ switch ($Command) {
         Invoke-Python -m alembic upgrade head
         Invoke-Python scripts\evaluate_model.py
     }
+    "learn-model" {
+        if (-not $Report) { throw "-Report に評価JSONのパスを指定してください" }
+        Invoke-Python -m alembic upgrade head
+        Invoke-Python scripts\learn_model.py $Report
+    }
+    "advanced-learn" {
+        Invoke-Python -m alembic upgrade head
+        Invoke-Python scripts\advanced_train_model.py --loops $Loops
+    }
+    "walk-forward" {
+        Invoke-Python -m alembic upgrade head
+        if ($Lottery) {
+            Invoke-Python scripts\walk_forward_evaluate.py --months $Months --count $Count --random-samples $RandomSamples --lottery $Lottery
+        }
+        else {
+            Invoke-Python scripts\walk_forward_evaluate.py --months $Months --count $Count --random-samples $RandomSamples
+        }
+    }
+    "import-walk-forward" {
+        if (-not $Report) { throw "-Report に評価JSONのパスを指定してください" }
+        Invoke-Python -m alembic upgrade head
+        if ($ReplaceExisting) {
+            Invoke-Python scripts\import_walk_forward_results.py $Report --numbers3-tickets $Numbers3Tickets --replace-existing
+        }
+        else {
+            Invoke-Python scripts\import_walk_forward_results.py $Report --numbers3-tickets $Numbers3Tickets
+        }
+    }
     "verify" {
         Invoke-Lint
         Invoke-MigrationVerification
@@ -106,6 +142,10 @@ switch ($Command) {
         Write-Host "  format   Format code and apply safe Ruff fixes"
         Write-Host "  migrate  Upgrade the configured database to the latest revision"
         Write-Host "  evaluate Evaluate and save model metrics for new draw data"
+        Write-Host "  learn-model Learn Numbers3 weights from a walk-forward report"
+        Write-Host "  advanced-learn Repeat loss feedback learning and verify on untouched data"
+        Write-Host "  walk-forward Simulate predictions against the latest held-out draws"
+        Write-Host "  import-walk-forward Add a report's predictions to the purchase ledger"
         Write-Host "  verify   Run lint, migration verification, tests, and compilation"
         Write-Host "  run      Migrate and start the local server"
     }

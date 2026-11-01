@@ -165,6 +165,15 @@ def normalize_scores(candidates: list[ScoredCandidate]) -> list[float]:
     return [round(100 / (1 + math.exp(-candidate.raw_score)), 2) for candidate in candidates]
 
 
+def score_candidate(
+    model: BiasModel,
+    numbers: tuple[int, ...],
+    config: BiasPredictionConfig = DEFAULT_CONFIG,
+) -> ScoredCandidate:
+    """候補1組の長期・直近・ペア成分と統合スコアを返す。"""
+    return _score_candidate(model, numbers, config)
+
+
 def backtest_bias(
     lottery: LotteryType,
     draws: list[Draw],

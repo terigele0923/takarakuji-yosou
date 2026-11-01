@@ -11,6 +11,9 @@ REQUIRED_TABLES = {
     "purchases",
     "prediction_runs",
     "model_evaluations",
+    "purchase_imports",
+    "bias_model_profiles",
+    "model_training_runs",
 }
 
 

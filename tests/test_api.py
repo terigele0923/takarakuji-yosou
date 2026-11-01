@@ -19,7 +19,8 @@ def test_トップページで画面が返る():
     assert "宝くじ予想AI" in response.text
     assert 'id="update-data-button"' in response.text
     assert 'id="check-status"' in response.text
-    assert '/static/js/app.js?v=20261031-3' in response.text
+    assert 'id="purchase-filters"' in response.text
+    assert '/static/js/app.js?v=20261101-4' in response.text
 
 
 def test_最新情報の更新件数が返る():

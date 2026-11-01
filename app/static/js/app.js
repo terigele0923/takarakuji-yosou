@@ -341,7 +341,7 @@ for (const tab of tabs) {
   tab.addEventListener("click", () => {
     for (const other of tabs) other.classList.toggle("active", other === tab);
     for (const panel of tabPanels) panel.hidden = panel.id !== tab.dataset.tab;
-    if (tab.dataset.tab === "purchases-tab") loadPurchases("GET", "/api/purchases");
+    if (tab.dataset.tab === "purchases-tab") loadPurchases("GET", purchaseUrl());
   });
 }
 
@@ -353,6 +353,12 @@ const purchasesError = document.getElementById("purchases-error");
 const purchasesTable = document.getElementById("purchases-table");
 const purchasesEmpty = document.getElementById("purchases-empty");
 const summaryNote = document.getElementById("summary-note");
+const purchaseFilters = document.getElementById("purchase-filters");
+const filterDateFrom = document.getElementById("filter-date-from");
+const filterDateTo = document.getElementById("filter-date-to");
+const filterRound = document.getElementById("filter-round");
+const filterStatus = document.getElementById("filter-status");
+const clearPurchaseFilters = document.getElementById("clear-purchase-filters");
 
 // 結果の状態の表示名
 const STATUS_NAMES = {
@@ -377,6 +383,7 @@ function showSummary(summary) {
   document.getElementById("summary-expected").textContent = yen(summary.expected_return);
 
   const notes = [];
+  notes.push("表示中：" + summary.count + " 件。");
   if (summary.pending_count > 0) notes.push("結果がまだの購入が " + summary.pending_count + " 件あります。");
   if (summary.expected_is_partial) notes.push("賞金のデータがない購入は、期待される戻りに含めていません。");
   notes.push("期待される戻り：当せん確率 × これまでの平均の賞金。長く買い続けたときの平均の目安です。");
@@ -391,7 +398,7 @@ function showPurchases(purchases) {
 
   const header = purchasesTable.insertRow();
   for (const title of [
-    "種類", "回", "購入番号", "当せん番号", "ボーナス番号",
+    "種類", "抽選日", "回", "購入番号", "当せん番号", "ボーナス番号",
     "申込タイプ", "金額", "結果", "賞金", "購入日時",
   ]) {
     header.appendChild(createElement("th", title));
@@ -399,6 +406,7 @@ function showPurchases(purchases) {
   for (const purchase of purchases) {
     const row = purchasesTable.insertRow();
     row.insertCell().textContent = purchase.name;
+    row.insertCell().textContent = purchase.draw_date || "-";
     row.insertCell().textContent = "第" + purchase.round + "回";
     row.insertCell().textContent = purchase.numbers.join(", ");
     row.insertCell().textContent = purchase.winning_numbers === null
@@ -418,7 +426,7 @@ function showPurchases(purchases) {
 }
 
 // 購入の一覧と収支を API から取得して表示する（POST のときは結果の確認もする）
-async function loadPurchases(method, url) {
+async function loadPurchases(method, url, display = true) {
   purchasesError.hidden = true;
   try {
     const response = await fetch(url, { method });
@@ -428,8 +436,10 @@ async function loadPurchases(method, url) {
       return null;
     }
     const data = await response.json();
-    showSummary(data.summary);
-    showPurchases(data.purchases);
+    if (display) {
+      showSummary(data.summary);
+      showPurchases(data.purchases);
+    }
     return data;
   } catch (e) {
     purchasesError.textContent = "サーバーに接続できませんでした";
@@ -438,17 +448,38 @@ async function loadPurchases(method, url) {
   }
 }
 
+function purchaseUrl() {
+  const parameters = new URLSearchParams();
+  if (filterDateFrom.value) parameters.set("date_from", filterDateFrom.value);
+  if (filterDateTo.value) parameters.set("date_to", filterDateTo.value);
+  if (filterRound.value) parameters.set("round_number", filterRound.value);
+  if (filterStatus.value) parameters.set("status", filterStatus.value);
+  const query = parameters.toString();
+  return "/api/purchases" + (query ? "?" + query : "");
+}
+
+purchaseFilters.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await loadPurchases("GET", purchaseUrl());
+});
+
+clearPurchaseFilters.addEventListener("click", async () => {
+  purchaseFilters.reset();
+  await loadPurchases("GET", "/api/purchases");
+});
+
 // 「結果を確認」が押されたら、照らし合わせて一覧を更新する
 checkButton.addEventListener("click", async () => {
   checkButton.disabled = true;
   checkButton.textContent = "確認中...";
   checkStatus.hidden = true;
-  const result = await loadPurchases("POST", "/api/purchases/check");
+  const result = await loadPurchases("POST", "/api/purchases/check", false);
   if (result) {
     checkStatus.textContent = result.checked_count === 0
       ? "確認しました。新しく確認できる抽せん結果はありません。"
       : result.checked_count + " 件の購入結果を新しく確認しました。";
     checkStatus.hidden = false;
+    await loadPurchases("GET", purchaseUrl());
   }
   checkButton.disabled = false;
   checkButton.textContent = "結果を確認";

@@ -7,8 +7,9 @@ from app.config import DB_PATH
 from app.schemas.lottery import LotteryType
 from app.schemas.predict import PredictResponse
 from app.schemas.prediction_tracking import ModelEvaluation, SavedPrediction
-from app.services.bias_prediction_service import MODEL_VERSION, backtest_bias
+from app.services.bias_prediction_service import backtest_bias
 from app.services.lottery_data import load_draws
+from app.services.model_profile_service import load_model_profile
 
 
 def save_prediction(
@@ -33,7 +34,7 @@ def save_prediction(
                 result.total_draws,
                 len(result.sets),
                 generated_at.isoformat(),
-                MODEL_VERSION,
+                result.model_version,
                 payload,
             ),
         )
@@ -41,7 +42,7 @@ def save_prediction(
     return SavedPrediction(
         id=prediction_id,
         generated_at=generated_at,
-        model_version=MODEL_VERSION,
+        model_version=result.model_version,
         result=result,
     )
 
@@ -84,18 +85,19 @@ def evaluate_pending(db_path: Path = DB_PATH) -> list[ModelEvaluation]:
         if not draws:
             continue
         source_last_round = draws[-1].round
+        profile = load_model_profile(lottery, db_path)
         with sqlite3.connect(db_path) as connection:
             exists = connection.execute(
                 """
                 SELECT 1 FROM model_evaluations
                 WHERE lottery = ? AND source_last_round = ? AND model_version = ?
                 """,
-                (lottery.value, source_last_round, MODEL_VERSION),
+                (lottery.value, source_last_round, profile.model_version),
             ).fetchone()
         if exists:
             continue
 
-        result = backtest_bias(lottery, draws)
+        result = backtest_bias(lottery, draws, profile.config)
         evaluated_at = _now()
         with sqlite3.connect(db_path) as connection:
             cursor = connection.execute(
@@ -111,7 +113,7 @@ def evaluate_pending(db_path: Path = DB_PATH) -> list[ModelEvaluation]:
                     source_last_round,
                     len(draws),
                     evaluated_at.isoformat(),
-                    MODEL_VERSION,
+                    profile.model_version,
                     result.evaluated_draws,
                     result.actual_average_score,
                     result.random_average_score,
@@ -128,7 +130,7 @@ def evaluate_pending(db_path: Path = DB_PATH) -> list[ModelEvaluation]:
                     source_last_round=source_last_round,
                     source_draw_count=len(draws),
                     evaluated_at=evaluated_at,
-                    model_version=MODEL_VERSION,
+                    model_version=profile.model_version,
                     **result.__dict__,
                 )
             )

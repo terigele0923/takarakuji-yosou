@@ -27,7 +27,7 @@ def test_upgrade_creates_expected_schema_and_is_idempotent(tmp_path):
         }
 
     assert REQUIRED_TABLES <= tables
-    assert revision == "20261101_0002"
+    assert revision == "20261101_0005"
     assert "ix_purchases_pending" in indexes
 
 
@@ -69,7 +69,7 @@ def test_upgrade_preserves_database_created_before_alembic(tmp_path):
         ).fetchone()[0]
 
     assert saved_draw == ("loto6", 1, "1,2,3,4,5,6")
-    assert revision == "20261101_0002"
+    assert revision == "20261101_0005"
 
 
 def test_upgrade_accepts_schema_precreated_by_test_sql(tmp_path):
@@ -85,4 +85,4 @@ def test_upgrade_accepts_schema_precreated_by_test_sql(tmp_path):
         revision = connection.execute(
             "SELECT version_num FROM alembic_version"
         ).fetchone()[0]
-    assert revision == "20261101_0002"
+    assert revision == "20261101_0005"

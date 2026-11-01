@@ -1,3 +1,5 @@
+import datetime
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.agent import AgentRequest, AgentResponse
@@ -13,11 +15,13 @@ from app.schemas.purchase import (
     PurchaseListResponse,
     PurchaseRequest,
     PurchaseResponse,
+    PurchaseStatus,
 )
 from app.services import (
     agent_service,
     chat_service,
     lottery_update_service,
+    model_profile_service,
     predict_service,
     prediction_tracking_service,
     purchase_service,
@@ -57,7 +61,13 @@ def update_lottery_data():
 def predict(request: PredictRequest):
     """宝くじの種類と組数を受け取り、予想した番号と当せん確率を返す"""
     try:
-        result = predict_service.predict(request.lottery, request.count)
+        profile = model_profile_service.load_model_profile(request.lottery)
+        result = predict_service.predict(
+            request.lottery,
+            request.count,
+            profile.config,
+            profile.model_version,
+        )
         prediction_tracking_service.save_prediction(result)
         return result
     except predict_service.NoDrawDataError as error:
@@ -96,9 +106,24 @@ def purchase(request: PurchaseRequest):
 
 
 @router.get("/purchases", response_model=PurchaseListResponse)
-def purchases():
+def purchases(
+    date_from: datetime.date | None = None,
+    date_to: datetime.date | None = None,
+    round_number: int | None = Query(default=None, ge=1),
+    status: PurchaseStatus | None = None,
+):
     """購入の一覧と、全体の収支を返す"""
-    return purchase_service.list_purchases()
+    if not any((date_from, date_to, round_number, status)):
+        return purchase_service.list_purchases()
+    try:
+        return purchase_service.list_purchases(
+            date_from=date_from,
+            date_to=date_to,
+            round_number=round_number,
+            status=status,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
 
 
 @router.post("/purchases/check", response_model=PurchaseCheckResponse)

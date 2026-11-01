@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.schemas.lottery import Draw, LotteryType, PlayType
-from app.schemas.purchase import PurchaseRequest
+from app.schemas.purchase import PurchaseRequest, PurchaseStatus
 from app.services.lottery_data import save_draws, save_prizes
 from app.services.purchase_service import check_results, list_purchases, save_purchase
 
@@ -204,6 +204,59 @@ def test_当たりと外れを記録して収支を計算する(db_path):
     assert (rows[2]["tier"], rows[2]["prize"]) == (None, 0)
 
 
+def test_抽選日と回と結果で収支を絞り込み小計する(db_path):
+    add_loto6_result(db_path, round=3)
+    save_draws(
+        LotteryType.LOTO6,
+        [
+            Draw(
+                round=4,
+                draw_date=datetime.date(2026, 2, 1),
+                numbers=[2, 6, 13, 20, 31, 42],
+                bonus=[23],
+            )
+        ],
+        db_path,
+    )
+    save_purchase(
+        request(LotteryType.LOTO6, [1, 5, 12, 2, 3, 4], PlayType.NORMAL, round=3),
+        db_path,
+    )
+    save_purchase(
+        request(LotteryType.LOTO6, [1, 2, 3, 4, 6, 7], PlayType.NORMAL, round=4),
+        db_path,
+    )
+    save_purchase(
+        request(LotteryType.LOTO6, [1, 2, 3, 4, 6, 7], PlayType.NORMAL, round=5),
+        db_path,
+    )
+    check_results(db_path)
+
+    won = list_purchases(
+        db_path,
+        date_from=datetime.date(2026, 1, 8),
+        date_to=datetime.date(2026, 1, 8),
+        status=PurchaseStatus.WON,
+    )
+    round_four = list_purchases(db_path, round_number=4)
+    pending = list_purchases(db_path, status=PurchaseStatus.PENDING)
+
+    assert [record.round for record in won.purchases] == [3]
+    assert won.purchases[0].draw_date == datetime.date(2026, 1, 8)
+    assert (won.summary.count, won.summary.spent, won.summary.won) == (1, 200, 1_000)
+    assert [record.round for record in round_four.purchases] == [4]
+    assert [record.round for record in pending.purchases] == [5]
+
+
+def test_収支絞り込みの開始日が終了日より後ならエラー(db_path):
+    with pytest.raises(ValueError, match="開始日"):
+        list_purchases(
+            db_path,
+            date_from=datetime.date(2026, 2, 1),
+            date_to=datetime.date(2026, 1, 1),
+        )
+
+
 def test_賞金がまだなければ賞金未登録になりあとで確定する(db_path):
     add_loto6_result(db_path, with_prizes=False)
     save_purchase(request(LotteryType.LOTO6, [1, 5, 12, 2, 3, 4], PlayType.NORMAL), db_path)
@@ -274,6 +327,34 @@ def test_収支のAPI(db_path):
     assert response.json()["purchases"][0]["status"] == "won"
     assert response.json()["summary"]["profit"] == 800
     assert response.json()["checked_count"] == 1
+
+
+def test_収支APIへ絞り込み条件を渡す(db_path):
+    add_loto6_result(db_path)
+    save_purchase(
+        request(LotteryType.LOTO6, [1, 5, 12, 2, 3, 4], PlayType.NORMAL),
+        db_path,
+    )
+    check_results(db_path)
+    with patch(
+        "app.services.purchase_service.list_purchases",
+        side_effect=lambda **filters: list_purchases(db_path, **filters),
+    ):
+        response = client.get(
+            "/api/purchases?date_from=2026-01-08&date_to=2026-01-08"
+            "&round_number=3&status=won"
+        )
+    assert response.status_code == 200
+    assert response.json()["summary"]["count"] == 1
+    assert response.json()["purchases"][0]["draw_date"] == "2026-01-08"
+
+
+def test_収支APIの期間が逆なら422():
+    response = client.get(
+        "/api/purchases?date_from=2026-02-01&date_to=2026-01-01"
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "開始日は終了日以前にしてください"
 
 
 def test_結果確認を繰り返した場合は新しい情報0件を返す(db_path):

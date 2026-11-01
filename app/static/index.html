@@ -79,6 +79,25 @@
 
       <p id="purchases-error" class="error" hidden></p>
 
+      <form id="purchase-filters" class="purchase-filters">
+        <label>抽選日（開始）<input type="date" id="filter-date-from"></label>
+        <label>抽選日（終了）<input type="date" id="filter-date-to"></label>
+        <label>回<input type="number" id="filter-round" min="1" placeholder="例：7073"></label>
+        <label>結果
+          <select id="filter-status">
+            <option value="">すべて</option>
+            <option value="won">当せん</option>
+            <option value="lost">外れ</option>
+            <option value="pending">未確認</option>
+            <option value="prize_unknown">賞金未登録</option>
+          </select>
+        </label>
+        <div class="filter-buttons">
+          <button type="submit">絞り込む</button>
+          <button type="button" id="clear-purchase-filters" class="secondary">解除</button>
+        </div>
+      </form>
+
       <div class="summary">
         <div class="summary-item"><span>使った金額</span><strong id="summary-spent">-</strong></div>
         <div class="summary-item"><span>当たった金額</span><strong id="summary-won">-</strong></div>
@@ -90,7 +109,7 @@
       <div class="table-wrap">
         <table id="purchases-table" class="purchases"></table>
       </div>
-      <p id="purchases-empty" class="hint" hidden>まだ購入の記録がありません。予想タブの「購入した」で記録できます。</p>
+      <p id="purchases-empty" class="hint" hidden>条件に一致する購入記録がありません。</p>
     </section>
 
     <!-- 相談タブ -->
@@ -113,6 +132,6 @@
     <p class="note">※予想は「過去の偏りの一部が未来にも継続する」という仮説に基づきます。偏りスコアとバックテストは、当せんを保証するものではありません。</p>
   </main>
 
-  <script src="/static/js/app.js?v=20261031-3"></script>
+  <script src="/static/js/app.js?v=20261101-4"></script>
 </body>
 </html>

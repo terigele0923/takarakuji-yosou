@@ -103,14 +103,44 @@ def check_results(db_path: Path = DB_PATH) -> PurchaseCheckResponse:
     )
 
 
-def list_purchases(db_path: Path = DB_PATH) -> PurchaseListResponse:
+def list_purchases(
+    db_path: Path = DB_PATH,
+    *,
+    date_from: datetime.date | None = None,
+    date_to: datetime.date | None = None,
+    round_number: int | None = None,
+    status: PurchaseStatus | None = None,
+) -> PurchaseListResponse:
     """購入の一覧（新しい順）と、全体の収支を返す"""
+    if date_from and date_to and date_from > date_to:
+        raise ValueError("開始日は終了日以前にしてください")
+    conditions = []
+    parameters: list[object] = []
+    if date_from:
+        conditions.append("d.draw_date >= ?")
+        parameters.append(date_from.isoformat())
+    if date_to:
+        conditions.append("d.draw_date <= ?")
+        parameters.append(date_to.isoformat())
+    if round_number is not None:
+        conditions.append("p.round = ?")
+        parameters.append(round_number)
+    if status == PurchaseStatus.WON:
+        conditions.append("p.prize > 0")
+    elif status == PurchaseStatus.LOST:
+        conditions.append("p.prize = 0")
+    elif status == PurchaseStatus.PENDING:
+        conditions.append("p.prize IS NULL AND p.tier IS NULL")
+    elif status == PurchaseStatus.PRIZE_UNKNOWN:
+        conditions.append("p.prize IS NULL AND p.tier IS NOT NULL")
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     with closing(connect(db_path)) as conn:
         rows = conn.execute(
-            "SELECT p.*, d.numbers AS draw_numbers, d.bonus AS draw_bonus "
+            "SELECT p.*, d.draw_date, d.numbers AS draw_numbers, d.bonus AS draw_bonus "
             "FROM purchases AS p "
             "LEFT JOIN draws AS d ON d.lottery = p.lottery AND d.round = p.round "
-            "ORDER BY p.id DESC"
+            f"{where} ORDER BY p.id DESC",
+            parameters,
         ).fetchall()
 
     averages: dict[LotteryType, dict[str, float]] = {}
@@ -163,6 +193,7 @@ def _to_record(row, average_prizes: dict[str, float]) -> PurchaseRecord:
         winning_numbers=winning_numbers,
         bonus_numbers=bonus_numbers,
         expected_return=expected_return(lottery, play_type, numbers, average_prizes),
+        draw_date=row["draw_date"],
     )
 
 

@@ -69,3 +69,52 @@ CREATE TABLE IF NOT EXISTS model_evaluations (
 
 CREATE INDEX IF NOT EXISTS ix_model_evaluations_lookup
 ON model_evaluations (lottery, evaluated_at DESC);
+
+-- 評価レポートから収支へ取り込んだ購入の二重登録を防ぐ
+CREATE TABLE IF NOT EXISTS purchase_imports (
+    source_ref  TEXT    PRIMARY KEY,
+    purchase_id INTEGER NOT NULL UNIQUE,
+    imported_at TEXT    NOT NULL,
+    FOREIGN KEY (purchase_id) REFERENCES purchases (id)
+);
+
+-- ウォークフォワード結果から学習した種類別の偏りモデル重み
+CREATE TABLE IF NOT EXISTS bias_model_profiles (
+    lottery                    TEXT PRIMARY KEY,
+    model_version              TEXT NOT NULL,
+    long_weight                REAL NOT NULL,
+    recent_weight              REAL NOT NULL,
+    pair_weight                REAL NOT NULL,
+    recent_half_life           INTEGER NOT NULL DEFAULT 40,
+    learned_at                 TEXT NOT NULL,
+    source_report_hash         TEXT NOT NULL,
+    training_rounds            INTEGER NOT NULL,
+    training_exact_hits        INTEGER NOT NULL,
+    training_total_matches     INTEGER NOT NULL
+);
+
+-- 複数の未使用期間で評価した高度学習の履歴
+CREATE TABLE IF NOT EXISTS model_training_runs (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    lottery                     TEXT NOT NULL,
+    created_at                  TEXT NOT NULL,
+    folds                       INTEGER NOT NULL,
+    validation_months           INTEGER NOT NULL,
+    test_months                 INTEGER NOT NULL,
+    candidate_model_version     TEXT NOT NULL,
+    long_weight                 REAL NOT NULL,
+    recent_weight               REAL NOT NULL,
+    pair_weight                 REAL NOT NULL,
+    recent_half_life            INTEGER NOT NULL,
+    evaluated_draws             INTEGER NOT NULL,
+    mean_actual_rank            REAL NOT NULL,
+    mean_rank_percentile        REAL NOT NULL,
+    average_best_matches        REAL NOT NULL,
+    random_average_best_matches REAL NOT NULL,
+    match_lift                  REAL NOT NULL,
+    confidence_low              REAL NOT NULL,
+    confidence_high             REAL NOT NULL,
+    exact_hits                  INTEGER NOT NULL,
+    promoted                    INTEGER NOT NULL,
+    report_json                 TEXT NOT NULL
+);

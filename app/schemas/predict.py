@@ -85,3 +85,4 @@ class PredictResponse(BaseModel):
     cooccurrence_matrices: list[CooccurrenceMatrix]
     prediction_method: str
     backtest: BiasBacktest
+    model_version: str = "bias-v1"

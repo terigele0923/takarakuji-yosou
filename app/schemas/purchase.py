@@ -42,6 +42,7 @@ class PurchaseRecord(PurchaseResponse):
     winning_numbers: list[int] | None   # その回の本数字（結果未公開なら None）
     bonus_numbers: list[int] | None     # その回のボーナス数字（結果未公開なら None）
     expected_return: float | None       # 期待される戻り（当せん確率 × 平均の賞金。賞金のデータがなければ None）
+    draw_date: datetime.date | None     # 抽選日（結果未公開なら None）
 
 
 class PurchaseSummary(BaseModel):
