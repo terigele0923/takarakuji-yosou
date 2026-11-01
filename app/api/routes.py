@@ -1,9 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.agent import AgentRequest, AgentResponse
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.lottery import RULES, LotteryType, LotteryUpdateResponse
 from app.schemas.predict import LotteryOption, PredictRequest, PredictResponse
+from app.schemas.prediction_tracking import (
+    ModelEvaluationList,
+    SavedPredictionList,
+)
 from app.schemas.purchase import (
     PurchaseCheckResponse,
     PurchaseListResponse,
@@ -15,6 +19,7 @@ from app.services import (
     chat_service,
     lottery_update_service,
     predict_service,
+    prediction_tracking_service,
     purchase_service,
 )
 
@@ -37,6 +42,8 @@ def update_lottery_data():
     """公式サイトの最新結果を確認し、DBにない抽せん結果と賞金を追加する"""
     try:
         added_draws, added_prizes = lottery_update_service.update_latest_draws()
+        if added_draws:
+            prediction_tracking_service.evaluate_pending()
         return LotteryUpdateResponse(added_draws=added_draws, added_prizes=added_prizes)
     except lottery_update_service.LotteryDataConflictError as error:
         raise HTTPException(status_code=409, detail=str(error))
@@ -50,9 +57,33 @@ def update_lottery_data():
 def predict(request: PredictRequest):
     """宝くじの種類と組数を受け取り、予想した番号と当せん確率を返す"""
     try:
-        return predict_service.predict(request.lottery, request.count)
+        result = predict_service.predict(request.lottery, request.count)
+        prediction_tracking_service.save_prediction(result)
+        return result
     except predict_service.NoDrawDataError as error:
         raise HTTPException(status_code=409, detail=str(error))
+
+
+@router.get("/predictions", response_model=SavedPredictionList)
+def predictions(
+    lottery: LotteryType | None = None,
+    limit: int = Query(default=20, ge=1, le=200),
+):
+    """保存済み予想を新しい順に返す。"""
+    return SavedPredictionList(
+        predictions=prediction_tracking_service.list_predictions(lottery, limit)
+    )
+
+
+@router.get("/model-evaluations", response_model=ModelEvaluationList)
+def model_evaluations(
+    lottery: LotteryType | None = None,
+    limit: int = Query(default=20, ge=1, le=200),
+):
+    """保存済みの偏りモデル評価を新しい順に返す。"""
+    return ModelEvaluationList(
+        evaluations=prediction_tracking_service.list_evaluations(lottery, limit)
+    )
 
 
 @router.post("/purchases", response_model=PurchaseResponse)

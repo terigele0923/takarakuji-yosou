@@ -14,6 +14,7 @@ jobs:
     timeout-minutes: 20
     env:
       OPENAI_API_KEY: test-key
+      MODEL_EVALUATION_ENABLED: "false"
 
     steps:
       - name: Checkout

@@ -30,6 +30,26 @@
 
 偏り予測スコアは `0〜100` の相対的なモデルスコアであり、当せん確率の百分率ではない。DBが同じなら同じ計算結果を再現する。
 
+## 予想履歴と偏りモデルの定期評価
+
+予想結果と評価指標はDBに履歴として保存する。
+
+- 予想保存：`予想ボタン → POST /api/predict → 偏りモデル → prediction_runs → API/画面`
+- 定期評価：`サーバー起動・24時間間隔・抽選データ更新 → 未評価の最終回を検出 → 時系列バックテスト → model_evaluations`
+
+同じ宝くじ種類・最終抽選回・モデル版の評価は一度だけ保存する。新しい抽選結果が入ると新しい評価行を作成する。評価間隔は `.env` の `MODEL_EVALUATION_INTERVAL_HOURS` で変更でき、`MODEL_EVALUATION_ENABLED=false` で停止できる。
+
+手動で即時評価する場合：
+
+```powershell
+.\scripts\dev.ps1 evaluate
+```
+
+保存結果はAPIでも確認できる。
+
+- `GET /api/predictions?lottery=loto6&limit=20`
+- `GET /api/model-evaluations?lottery=loto6&limit=20`
+
 ## 構成
 
 | 場所 | 役割 |
@@ -53,13 +73,15 @@
 
 ## データ（data/lottery.db）
 
-SQLite の `data/lottery.db` に、次の3つの表を持つ。スキーマの正本は `migrations/` の変更履歴で、`scripts/create_tables.sql` はテスト用DBを素早く作るためにも使用する。
+SQLite の `data/lottery.db` に、次の5つの表を持つ。スキーマの正本は `migrations/` の変更履歴で、`scripts/create_tables.sql` はテスト用DBを素早く作るためにも使用する。
 
 | 表 | 中身 |
 |---|---|
 | `draws` | 過去の抽選結果（種類と回で1行） |
 | `prizes` | 回ごと・等級ごとの1口あたりの賞金 |
 | `purchases` | 購入した記録（申込タイプ・結果の等級・当たった金額） |
+| `prediction_runs` | 生成時刻、対象回、使用データの最終回、予想APIの全出力 |
+| `model_evaluations` | データ最終回ごとのバックテスト指標とモデル版 |
 
 環境変数 `LOTTERY_DB_PATH` で、使う DB を変えられる（例：テスト用の `data/sample.db`）。
 

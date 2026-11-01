@@ -117,17 +117,24 @@ def test_種類の一覧のAPI():
 
 
 def test_予想APIが指定組数と偏り検証を返す():
-    with patch("app.services.predict_service.load_draws", return_value=make_loto6_draws()):
+    with (
+        patch("app.services.predict_service.load_draws", return_value=make_loto6_draws()),
+        patch("app.api.routes.prediction_tracking_service.save_prediction") as save,
+    ):
         response = client.post("/api/predict", json={"lottery": "loto6", "count": 2})
     assert response.status_code == 200
     body = response.json()
     assert len(body["sets"]) == 2
     assert "bias_score" in body["sets"][0]
     assert body["backtest"]["evaluated_draws"] == 40
+    save.assert_called_once()
 
 
 def test_予想APIで組数を省くと1組():
-    with patch("app.services.predict_service.load_draws", return_value=make_loto6_draws()):
+    with (
+        patch("app.services.predict_service.load_draws", return_value=make_loto6_draws()),
+        patch("app.api.routes.prediction_tracking_service.save_prediction"),
+    ):
         response = client.post("/api/predict", json={"lottery": "loto6"})
     assert response.status_code == 200
     assert len(response.json()["sets"]) == 1

@@ -34,3 +34,38 @@ CREATE TABLE IF NOT EXISTS purchases (
 CREATE INDEX IF NOT EXISTS ix_purchases_pending
 ON purchases (lottery, round)
 WHERE prize IS NULL;
+
+-- 画面で生成した予想結果の履歴
+CREATE TABLE IF NOT EXISTS prediction_runs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    lottery           TEXT    NOT NULL,
+    target_round      INTEGER NOT NULL,
+    source_last_round INTEGER NOT NULL,
+    source_draw_count INTEGER NOT NULL,
+    requested_count   INTEGER NOT NULL,
+    generated_at      TEXT    NOT NULL,
+    model_version     TEXT    NOT NULL,
+    response_json     TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_prediction_runs_lookup
+ON prediction_runs (lottery, target_round, generated_at DESC);
+
+-- 抽選データの最終回ごとに保存する偏りモデルの評価結果
+CREATE TABLE IF NOT EXISTS model_evaluations (
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    lottery                TEXT    NOT NULL,
+    source_last_round      INTEGER NOT NULL,
+    source_draw_count      INTEGER NOT NULL,
+    evaluated_at           TEXT    NOT NULL,
+    model_version          TEXT    NOT NULL,
+    evaluated_draws        INTEGER NOT NULL,
+    actual_average_score   REAL    NOT NULL,
+    random_average_score   REAL    NOT NULL,
+    score_lift_percent     REAL    NOT NULL,
+    above_random_rate      REAL    NOT NULL,
+    UNIQUE (lottery, source_last_round, model_version)
+);
+
+CREATE INDEX IF NOT EXISTS ix_model_evaluations_lookup
+ON model_evaluations (lottery, evaluated_at DESC);

@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import openai
@@ -23,13 +23,17 @@ def test_トップページで画面が返る():
 
 
 def test_最新情報の更新件数が返る():
-    with patch(
-        "app.api.routes.lottery_update_service.update_latest_draws",
-        return_value=(2, 8),
+    with (
+        patch(
+            "app.api.routes.lottery_update_service.update_latest_draws",
+            return_value=(2, 8),
+        ),
+        patch("app.api.routes.prediction_tracking_service.evaluate_pending") as evaluate,
     ):
         response = client.post("/api/lottery-data/update")
     assert response.status_code == 200
     assert response.json() == {"added_draws": 2, "added_prizes": 8}
+    evaluate.assert_called_once_with()
 
 
 def test_DBとの矛盾は409で返す():
@@ -100,7 +104,11 @@ def test_AIに接続できないと503とメッセージが返る():
 
 
 def test_APIキーがあれば起動できる():
-    with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), TestClient(app) as started_client:
+    with (
+        patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}),
+        patch("app.main.run_periodic_evaluations", new=AsyncMock()),
+        TestClient(app) as started_client,
+    ):
         assert started_client.get("/").status_code == 200
 
 

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from app.schemas.lottery import RULES, Draw, LotteryType
 
+MODEL_VERSION = "bias-v1"
+
 
 @dataclass(frozen=True)
 class BiasPredictionConfig:

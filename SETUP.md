@@ -119,6 +119,15 @@ Select-String -Path .env -Pattern '^OPENAI_API_KEY=.+' -Quiet
 
 確認：`True` と表示されればよい。`False` なら `.env` を開き、`OPENAI_API_KEY=` のあとに API キーを書く。
 
+偏りモデルはサーバー起動中に既定24時間間隔で評価される。間隔を変える場合は `.env` に次を設定する。
+
+```dotenv
+MODEL_EVALUATION_ENABLED=true
+MODEL_EVALUATION_INTERVAL_HOURS=24
+```
+
+新しい抽選結果がなければ再計算・重複保存はしない。手動で確認する場合は `.\scripts\dev.ps1 evaluate` を実行する。
+
 DB に必要な表（抽選結果・賞金・購入の記録）があることを確認する。表の作成・更新はAlembicが行う。
 
 ```powershell

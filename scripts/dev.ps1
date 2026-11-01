@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("help", "setup", "test", "lint", "format", "migrate", "verify", "run")]
+    [ValidateSet("help", "setup", "test", "lint", "format", "migrate", "evaluate", "verify", "run")]
     [string]$Command = "help",
     [switch]$SkipBrowser
 )
@@ -85,6 +85,10 @@ switch ($Command) {
     "migrate" {
         Invoke-Python -m alembic upgrade head
     }
+    "evaluate" {
+        Invoke-Python -m alembic upgrade head
+        Invoke-Python scripts\evaluate_model.py
+    }
     "verify" {
         Invoke-Lint
         Invoke-MigrationVerification
@@ -101,6 +105,7 @@ switch ($Command) {
         Write-Host "  lint     Run Python and JavaScript checks"
         Write-Host "  format   Format code and apply safe Ruff fixes"
         Write-Host "  migrate  Upgrade the configured database to the latest revision"
+        Write-Host "  evaluate Evaluate and save model metrics for new draw data"
         Write-Host "  verify   Run lint, migration verification, tests, and compilation"
         Write-Host "  run      Migrate and start the local server"
     }

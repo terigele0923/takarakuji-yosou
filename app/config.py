@@ -23,6 +23,14 @@ MODEL_NAME = "gpt-5.4-mini"
 # 集計の対象にする期間（最新の抽選日から何年前までか）
 STATS_YEARS = 10
 
+# 偏りモデルの評価間隔。サーバー起動中にこの間隔で新しい抽選回を確認する。
+MODEL_EVALUATION_INTERVAL_HOURS = float(
+    os.getenv("MODEL_EVALUATION_INTERVAL_HOURS", "24")
+)
+MODEL_EVALUATION_ENABLED = os.getenv(
+    "MODEL_EVALUATION_ENABLED", "true"
+).lower() not in {"0", "false", "no"}
+
 
 def check_api_key() -> None:
     """OPENAI_API_KEY が設定されていなければエラーにする"""

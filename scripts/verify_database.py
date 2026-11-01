@@ -4,7 +4,14 @@ import argparse
 import sqlite3
 from pathlib import Path
 
-REQUIRED_TABLES = {"alembic_version", "draws", "prizes", "purchases"}
+REQUIRED_TABLES = {
+    "alembic_version",
+    "draws",
+    "prizes",
+    "purchases",
+    "prediction_runs",
+    "model_evaluations",
+}
 
 
 def verify_database(database_path: Path) -> None:
