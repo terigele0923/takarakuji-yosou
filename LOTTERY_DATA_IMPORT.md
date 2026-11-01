@@ -26,6 +26,7 @@
 | [app/services/mizuho_import_service.py](./app/services/mizuho_import_service.py) | CSV解析、DB比較、バックアップ付き保存をWeb更新とCLIへ提供する共通サービス |
 | [scripts/import_mizuho_data.py](./scripts/import_mizuho_data.py) | JSONファイル・引数を受け取り、共通サービスを呼び出すCLI入口 |
 | [scripts/create_tables.sql](./scripts/create_tables.sql) | 抽せん結果・賞金・購入記録を保存する表の定義 |
+| [migrations](./migrations) | 本番DBのスキーマ変更履歴。起動前にAlembicが未適用分を反映 |
 | ブラウザーの `fetch` | 公式ページと同じ接続元からCSVを取得する機能 |
 | `TextDecoder("shift_jis")` | 日本語の公式CSVを文字化けせず読み取るための変換 |
 | SQLite | アプリが使うファイル型データベース |
@@ -126,13 +127,13 @@ Copy-Item "$env:USERPROFILE\Downloads\mizuho_lottery_history.json" ".\data\mizuh
 
 ### ドライランで `Database is missing required tables` と表示される
 
-対象DBに必要な表がありません。まずDBファイルのパスが正しいか確認します。表を新規作成する場合は、既存DBをバックアップしてから、プロジェクトのルートで次を実行します。
+対象DBに必要な表がありません。まずDBファイルのパスが正しいか確認します。表を新規作成・更新する場合は、プロジェクトのルートで次を実行します。
 
 ```powershell
-.venv\Scripts\python -c "import sqlite3; sqlite3.connect('data/lottery.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
+.\scripts\dev.ps1 migrate
 ```
 
-このSQLは足りない表を作りますが、誤ったDBを選ぶと別のファイルが作られることがあります。実行前にパスを確認してください。
+Alembicは未適用の変更だけを順番に反映します。`LOTTERY_DB_PATH` を指定している場合は、そのDBが対象になるため実行前にパスを確認してください。
 
 ### `Conflicts` が表示される
 

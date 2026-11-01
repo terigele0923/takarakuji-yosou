@@ -44,13 +44,16 @@
 | `app/static/` | 画面（HTML・CSS・JS） |
 | `prompts/lottery_analysis.md` | 予想・相談AIが毎回参照する分析ルールと出典 |
 | `app/db.py` | SQLite への接続 |
+| `app/db_migrations.py` | Alembicマイグレーションの実行入口 |
 | `data/` | 本物の DB（lottery.db）、テスト用の DB（sample.db） |
-| `scripts/` | サーバー起動、表作成SQL、公式データ取込CLIなどの実行入口 |
+| `migrations/` | DBスキーマの変更履歴（Alembic） |
+| `scripts/dev.ps1` | セットアップ、検査、テスト、DB更新、起動をまとめた開発コマンド |
+| `.github/workflows/ci.yml` | push・Pull Request時に自動検証するGitHub Actions |
 | `tests/` | テスト |
 
 ## データ（data/lottery.db）
 
-SQLite の `data/lottery.db` に、次の3つの表を持つ。表の定義は `scripts/create_tables.sql`。
+SQLite の `data/lottery.db` に、次の3つの表を持つ。スキーマの正本は `migrations/` の変更履歴で、`scripts/create_tables.sql` はテスト用DBを素早く作るためにも使用する。
 
 | 表 | 中身 |
 |---|---|
@@ -85,20 +88,18 @@ SQLite の `data/lottery.db` に、次の3つの表を持つ。表の定義は `
 ## 準備
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+.\scripts\dev.ps1 setup
 copy .env.example .env   # .env に OPENAI_API_KEY を書く
-
-# 表を作る（何度実行しても、今あるデータはそのまま残る）
-python -c "import sqlite3; sqlite3.connect('data/lottery.db').executescript(open('scripts/create_tables.sql', encoding='utf-8').read())"
+.\scripts\dev.ps1 migrate
 ```
 
 ## 起動
 
 ```powershell
-.venv\Scripts\python scripts\run_server.py
+.\scripts\dev.ps1 run
 ```
+
+起動時は `開発コマンド → run_server.py → Alembic → data/lottery.db → FastAPI` の順に進み、未適用のDB変更を適用してからサーバーを公開する。
 
 - 画面：http://localhost:8000
 - API の確認画面：http://localhost:8000/docs
@@ -108,7 +109,9 @@ python -c "import sqlite3; sqlite3.connect('data/lottery.db').executescript(open
 ## テスト
 
 ```powershell
-python -m pytest tests -q
+.\scripts\dev.ps1 verify
 ```
 
-全テストは追加の除外指定なしで実行できる。API・サービス・公式CSV解析・偏り予測・購入判定をテスト対象とする。
+`verify` は Ruff、JavaScript構文確認、一時DBへのマイグレーション、全テスト、Python構文確認を順番に実行する。GitHub Actionsも同じコマンドを使うため、ローカルとCIの判定が一致する。
+
+主な開発コマンドは `setup`、`run`、`migrate`、`test`、`lint`、`format`、`verify`。一覧は `.\scripts\dev.ps1 help` で確認できる。

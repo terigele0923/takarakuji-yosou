@@ -29,3 +29,8 @@ CREATE TABLE IF NOT EXISTS purchases (
     tier         TEXT,              -- 結果の等級（外れ・未確認は NULL）
     prize        INTEGER            -- 当たった金額（未確認は NULL）
 );
+
+-- 未確認購入と抽せん結果の照合を高速化する索引
+CREATE INDEX IF NOT EXISTS ix_purchases_pending
+ON purchases (lottery, round)
+WHERE prize IS NULL;
